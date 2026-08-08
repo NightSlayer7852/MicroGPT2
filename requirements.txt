@@ -1,0 +1,16 @@
+langchain
+langchain-community
+langfuse
+sentence-transformers
+qdrant-client
+langchain-groq
+python-dotenv
+neo4j
+fastapi
+uvicorn
+ragas
+datasets
+pypdf
+gradio
+requests
+fastembed

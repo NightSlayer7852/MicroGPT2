@@ -1,0 +1,4 @@
+# question|reference_answer
+How does the system retrieve context for a query?|The system uses the hybrid Qdrant retriever to combine dense embeddings and sparse BM25 search, then optionally reranks the merged results.
+When does the app fall back from Qdrant cloud to local storage?|If the cloud Qdrant connection fails during initialization, VectorStore falls back to the local path configured by QDRANT_LOCAL_PATH.
+What data does the evaluation script need?|It needs questions in test.txt and can optionally use reference answers separated by a pipe character.
