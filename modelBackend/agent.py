@@ -25,7 +25,10 @@ def search_knowledge_graph(query: str) -> str:
 
 
 def should_expand_with_graph(query: str) -> bool:
-    from backend.rag import llm  # local import: rag.py builds this agent, so import lazily to avoid a cycle
+    try:
+        from .rag import llm  # local import: rag.py builds this agent, so import lazily to avoid a cycle
+    except ImportError:
+        from rag import llm
 
     router = llm.bind_tools([search_knowledge_graph])
     response = router.invoke(

@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from backend.config import settings
-from backend.embedding import EmbeddingManager
-from backend.vector_store import VectorStore
+try:
+    from .config import settings
+    from .embedding import EmbeddingManager
+    from .vector_store import VectorStore
+except ImportError:
+    from config import settings
+    from embedding import EmbeddingManager
+    from vector_store import VectorStore
 from qdrant_client.models import models
 
 
@@ -14,7 +19,17 @@ class RAGRetriever:
         self.embedding_manager = embedding_manager
 
     def retrieve(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        print(f"Retrieving documents for query: {query}")
+        collection_name = self.vector_store.collection_name
+        try:
+            points_count = self.vector_store.client.get_collection(collection_name).points_count
+        except Exception:
+            points_count = "unknown"
+
+        print(f"\n[Retrieval Step] Searching Qdrant collection '{collection_name}' (Total points in store: {points_count})")
+        print(f"[Retrieval Step] Query: \"{query}\" (Requested top_k={top_k})")
+
+        if points_count == 0:
+            print(f"[Retrieval Step] [WARNING] Collection '{collection_name}' has 0 points! Have you run ingest.py to add documents?")
 
         dense_vector = self.embedding_manager.generate_embeddings([query])[0]
 
@@ -48,5 +63,10 @@ class RAGRetriever:
                     "page": payload.get("page"),
                 }
             )
+
+        print(f"[Retrieval Step] Retrieved {len(retrieved_docs)} candidate documents from Qdrant.")
+        for idx, doc in enumerate(retrieved_docs, start=1):
+            snippet = (doc['content'][:80] + '...') if doc.get('content') else 'N/A'
+            print(f"   |- [{idx}] Score: {doc['score']:.4f} | Chapter: {doc.get('chapter')} | Page: {doc.get('page')} | Snippet: {snippet}")
 
         return retrieved_docs

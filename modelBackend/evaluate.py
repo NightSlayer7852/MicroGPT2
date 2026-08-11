@@ -8,8 +8,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional
 
-from backend.config import settings
-from backend.rag import build_components, llm, rag
+try:
+    from .config import settings
+    from .rag import build_components, llm, rag
+except ImportError:
+    from config import settings
+    from rag import build_components, llm, rag
 
 
 def load_examples(file_path: str = "test.txt") -> List[tuple[str, Optional[str]]]:

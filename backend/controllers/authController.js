@@ -60,7 +60,9 @@ exports.refresh = async (req, res) => {
 
       // Issue new tokens
       await Session.deleteOne({ _id: session._id }); // Delete old session
-      const tokens = await authService.generateTokens(decoded.id); // Generate new pair
+      const user = await User.findById(decoded.id);
+      if (!user) return res.status(401).json({ message: 'User no longer exists' });
+      const tokens = await authService.generateTokens(user._id, user.name); // Generate new pair
       res.status(200).json(tokens);
     });
   } catch (error) {
@@ -104,7 +106,7 @@ exports.logout = async (req, res) => {
 // Handles Google OAuth callback token generation
 exports.googleCallback = async (req, res) => {
   try {
-    const tokens = await authService.generateTokens(req.user._id);
+    const tokens = await authService.generateTokens(req.user._id, req.user.name);
     
     // 👇 Change 3000 to 5173 to match your Vite frontend
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';

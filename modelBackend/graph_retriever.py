@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 from typing import List
 
-from backend.tracing import get_langfuse_langchain_handler
+try:
+    from .tracing import get_langfuse_langchain_handler
+except ImportError:
+    from tracing import get_langfuse_langchain_handler
 from neo4j import GraphDatabase
 
 
@@ -20,9 +23,12 @@ class GraphRetriever:
         self.driver.close()
 
     def extract_entities(self, query: str) -> List[str]:
-        # Imported lazily to avoid a circular import: backend.rag builds the
-        # GraphRetriever, and the GraphRetriever needs backend.rag's llm.
-        from backend.rag import llm
+        # Imported lazily to avoid a circular import: rag.py builds the
+        # GraphRetriever, and the GraphRetriever needs rag's llm.
+        try:
+            from .rag import llm
+        except ImportError:
+            from rag import llm
 
         prompt = f"""
 Extract the most important technical entities, components, or keywords from the following query.

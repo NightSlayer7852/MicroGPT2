@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext"; 
-import axiosClient from "../api/axiosClient";
 import { chatApi, type Conversation } from "../api/chatApi";
 
 import blackLogo from "../assets/white_logo_micro-removebg-preview.png";
@@ -31,25 +30,11 @@ export default function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-    const { logout } = useAuth();
+    const { logout, userName } = useAuth();
     const { theme, toggleTheme } = useTheme();
 
-    const [firstName, setFirstName] = useState("User");
+    const firstName = userName ? userName.split(" ")[0] : "User";
     const [conversations, setConversations] = useState<Conversation[]>([]);
-
-    useEffect(() => {
-        const fetchUserProfile = async () => {
-            try {
-                const response = await axiosClient.get("/auth/me");
-                const fullName = response.data.name;
-                if (fullName) setFirstName(fullName.split(" ")[0]);
-            } catch (error) {
-                console.error("Failed to fetch user profile in sidebar:", error);
-                setFirstName("User");
-            }
-        };
-        fetchUserProfile();
-    }, []);
 
     useEffect(() => {
         const loadHistory = async () => {

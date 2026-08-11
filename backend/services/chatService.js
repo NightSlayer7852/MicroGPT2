@@ -18,8 +18,11 @@ exports.saveUserMessage = async (conversationId, content) => {
 
 exports.generateAiResponse = async (conversationId, userPrompt) => {
   try {
-    // 1. Send the request to your FastAPI server via Ngrok
-    const fastApiUrl = process.env.FASTAPI_URL;
+    // 1. Send the request to your FastAPI server via Ngrok / Local
+    let fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000/query';
+    if (fastApiUrl && !fastApiUrl.endsWith('/query')) {
+      fastApiUrl = fastApiUrl.replace(/\/+$/, '') + '/query';
+    }
     
     const response = await axios.post(fastApiUrl, {
       query: userPrompt

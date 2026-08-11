@@ -8,14 +8,24 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langfuse import propagate_attributes
 
-from backend.agent import should_expand_with_graph
-from backend.config import settings
-from backend.embedding import EmbeddingManager
-from backend.graph_retriever import GraphRetriever
-from backend.reranker import DocumentReranker
-from backend.retriever import RAGRetriever
-from backend.tracing import get_langfuse_langchain_handler, start_span
-from backend.vector_store import VectorStore
+try:
+    from .agent import should_expand_with_graph
+    from .config import settings
+    from .embedding import EmbeddingManager
+    from .graph_retriever import GraphRetriever
+    from .reranker import DocumentReranker
+    from .retriever import RAGRetriever
+    from .tracing import get_langfuse_langchain_handler, start_span
+    from .vector_store import VectorStore
+except ImportError:
+    from agent import should_expand_with_graph
+    from config import settings
+    from embedding import EmbeddingManager
+    from graph_retriever import GraphRetriever
+    from reranker import DocumentReranker
+    from retriever import RAGRetriever
+    from tracing import get_langfuse_langchain_handler, start_span
+    from vector_store import VectorStore
 
 load_dotenv()
 
@@ -43,12 +53,6 @@ class RAGComponents:
 
 
 def build_components(include_graph: bool = False) -> RAGComponents:
-    if not settings.qdrant_url:
-        raise ValueError("Missing required environment variable: QDRANT_URL")
-
-    if not settings.qdrant_api_key:
-        raise ValueError("Missing required environment variable: QDRANT_API_KEY")
-
     embedding_manager = EmbeddingManager()
     vector_store = VectorStore(
         collection_name=settings.qdrant_collection_name,
@@ -87,6 +91,10 @@ def rag(
     graph_retriever=None,
     tracing_context: Optional[Dict[str, Any]] = None,
 ):
+    print(f"\n=======================================================")
+    print(f"[RAG Pipeline] New Query Received: \"{query}\"")
+    print(f"=======================================================")
+
     tracing_context = tracing_context or {}
 
     trace_name = tracing_context.get("trace_name", "rag-request")
@@ -115,6 +123,8 @@ def rag(
             if retrieval_span is not None:
                 retrieval_span.update(output={"result_count": len(base_results)})
 
+        print(f"[RAG Pipeline] Base Retrieval candidate count: {len(base_results)}")
+
         graph_results = []
         if graph_retriever is not None:
             with start_span(
@@ -126,6 +136,8 @@ def rag(
                 if route_span is not None:
                     route_span.update(output={"use_graph": use_graph})
 
+            print(f"[RAG Pipeline] Knowledge Graph Router decision: use_graph={use_graph}")
+
             if use_graph:
                 try:
                     with start_span(
@@ -136,6 +148,7 @@ def rag(
                         related_entities = graph_retriever.get_related_entities(query)
                         if related_entities:
                             expanded_query = query + " " + " ".join(related_entities)
+                            print(f"[RAG Pipeline] Expanded Query with graph entities: \"{expanded_query}\"")
                             graph_results = retriever.retrieve(expanded_query, top_k=max(3, top_k // 2))
 
                             for doc in graph_results:
@@ -161,7 +174,10 @@ def rag(
                 seen.add(key)
                 unique_results.append(doc)
 
+        print(f"[RAG Pipeline] Deduplicated candidates count: {len(unique_results)}")
+
         if reranker is not None and unique_results:
+            print(f"[RAG Pipeline] Reranking {len(unique_results)} candidates using CrossEncoder...")
             with start_span(
                 "rerank-documents",
                 input_payload={"candidate_count": len(unique_results)},
@@ -172,9 +188,13 @@ def rag(
                     rerank_span.update(output={"result_count": len(unique_results)})
 
         if not unique_results:
+            print(f"[RAG Pipeline] [WARNING] NO RELEVANT CONTEXT FOUND! (Retriever returned 0 matching documents)")
+            print(f"=======================================================\n")
             if root_span is not None:
                 root_span.update(output={"answer": "No relevant context found.", "confidence": 0.0})
             return {"answer": "No relevant context found.", "sources": [], "confidence": 0.0}
+
+        print(f"[RAG Pipeline] Sending prompt with {len(unique_results)} context chunks to Groq LLM ({settings.groq_model})...")
 
         context = "\n\n".join([doc["content"] for doc in unique_results])
         sources = [
@@ -215,7 +235,7 @@ Citations:
 Confidence:
 <High / Medium / Low>
 
-Follow-up Question:
+Follow-up Questions:
 <generate 2 or 3 highly relevant follow-up question based on the topic and context provided>
 """
 
@@ -236,6 +256,9 @@ Follow-up Question:
 
             if generation_span is not None:
                 generation_span.update(output={"answer_preview": response.content[:400], "confidence": confidence})
+
+        print(f"[RAG Pipeline] LLM Response generated successfully! Confidence: {confidence:.4f}")
+        print(f"=======================================================\n")
 
         output = {"answer": response.content, "sources": sources, "confidence": confidence}
 

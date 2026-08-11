@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axiosClient from "../api/axiosClient";
 import { useTheme } from "../context/ThemeContext";
 
 import { chatApi, type Message } from "../api/chatApi";
@@ -15,11 +14,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const { logout } = useAuth();
+  const { logout, userName: authUserName } = useAuth();
   const { theme, toggleTheme } = useTheme();
   
   const [greeting, setGreeting] = useState("Good evening");
-  const [userName, setUserName] = useState("Loading..."); 
+  const [userName, setUserName] = useState<string>(authUserName || "User"); 
 
   const [inputText, setInputText] = useState("");
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -40,17 +39,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await axiosClient.get("/auth/me");
-        setUserName(response.data.name); 
-      } catch (error) {
-        console.error("Failed to fetch user profile:", error);
-        setUserName("User"); 
-      }
-    };
-    fetchUserProfile();
-  }, []);
+    if (authUserName) {
+      setUserName(authUserName);
+    }
+  }, [authUserName]);
 
   useEffect(() => {
     const chatId = searchParams.get("c");

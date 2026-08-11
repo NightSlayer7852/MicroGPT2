@@ -37,7 +37,10 @@ const messageSchema = new mongoose.Schema({
     confidenceLevel: {
       type: String,
       enum: ['Low', 'Medium', 'High']
-    }
+    },
+    followUpQuestions: [{
+      type: String
+    }]
   }
 }, { timestamps: true });
 

@@ -8,8 +8,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.config import settings
-from backend.rag import RAGComponents, build_components, llm, rag
+try:
+    from .config import settings
+    from .rag import RAGComponents, build_components, llm, rag
+except ImportError:
+    from config import settings
+    from rag import RAGComponents, build_components, llm, rag
 
 
 class QueryRequest(BaseModel):
@@ -80,6 +84,9 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
         )
         return QueryResponse(answer=response["answer"], sources=response["sources"], confidence=response["confidence"])
     except Exception as exc:
+        print(f"[API Error] ❌ Exception processing query: {exc}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(exc))
 
 

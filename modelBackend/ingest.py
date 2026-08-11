@@ -12,9 +12,14 @@ from typing import Any, Dict, List, Optional
 from fastembed import SparseTextEmbedding
 from pypdf import PdfReader
 
-from backend.config import settings
-from backend.embedding import EmbeddingManager
-from backend.vector_store import VectorStore
+try:
+    from .config import settings
+    from .embedding import EmbeddingManager
+    from .vector_store import VectorStore
+except ImportError:
+    from config import settings
+    from embedding import EmbeddingManager
+    from vector_store import VectorStore
 
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 100
