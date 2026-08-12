@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import List, Optional
@@ -48,9 +49,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MicroGPT RAG API", lifespan=lifespan)
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://micro-gpt-frontend.vercel.app",
+    "https://micro-gpt-backend.vercel.app",
+]
+
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url and frontend_url not in origins:
+    origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

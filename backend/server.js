@@ -15,25 +15,28 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 
 
-// Define the "VIP list" of allowed URLs
 const allowedOrigins = [
-  'http://localhost:5173', // Your local development React app
-  'https://micro-gpt-frontend.vercel.app' // Your live deployed React app
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://micro-gpt-frontend.vercel.app'
 ];
 
+if (process.env.FRONTEND_URL && !allowedOrigins.includes(process.env.FRONTEND_URL)) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 // --- Middleware ---
-// Allows cross-origin requests from your frontend
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or Postman)
-    // OR allow if the origin is in our allowedOrigins array
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     }
   },
-  credentials: true, // Crucial for allowing Authorization headers and tokens to pass through
+  credentials: true,
 }));
 // Parses incoming JSON payloads
 app.use(express.json()); 
