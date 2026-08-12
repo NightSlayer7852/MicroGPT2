@@ -18,6 +18,20 @@ exports.saveUserMessage = async (conversationId, content) => {
 
 exports.generateAiResponse = async (conversationId, userPrompt) => {
   try {
+    // 0. Fetch recent conversation history from MongoDB (last 6 messages)
+    let history = [];
+    if (conversationId) {
+      const recentMessages = await Message.find({ conversationId })
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean();
+
+      history = recentMessages.reverse().map((msg) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      }));
+    }
+
     // 1. Send the request to your FastAPI server via Ngrok / Local
     let fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000/query';
     if (fastApiUrl && !fastApiUrl.endsWith('/query')) {
@@ -25,11 +39,12 @@ exports.generateAiResponse = async (conversationId, userPrompt) => {
     }
     
     const response = await axios.post(fastApiUrl, {
-      query: userPrompt
+      query: userPrompt,
+      history: history,
+      session_id: conversationId ? conversationId.toString() : undefined
     }, {
       headers: {
         'Content-Type': 'application/json',
-        // 'ngrok-skip-browser-warning': 'true' // Uncomment if free Ngrok blocks your request
       }
     });
 
@@ -58,10 +73,11 @@ exports.generateAiResponse = async (conversationId, userPrompt) => {
     }
     // ==========================================
 
-    // 2. Format the confidence score
-    let score = aiData.confidence || 0;
-    if (score > 0 && score <= 5) score = score * 20; 
+    // 2. Format the confidence score (strictly clamped between 0 and 100 for MongoDB)
+    let rawConfidence = typeof aiData.confidence === 'number' ? aiData.confidence : 0;
+    let score = rawConfidence <= 1.0 && rawConfidence >= 0 ? rawConfidence * 100 : rawConfidence;
     score = Math.round(score);
+    score = Math.max(0, Math.min(100, score)); // Strictly 0-100
 
     let confidenceLevel = 'Low';
     if (score >= 80) confidenceLevel = 'High';

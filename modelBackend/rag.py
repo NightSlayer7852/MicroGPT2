@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+
+def normalize_confidence(score: float) -> float:
+    if 0.0 <= score <= 1.0:
+        return round(score, 4)
+    try:
+        val = 1.0 / (1.0 + math.exp(-score))
+        return round(val, 4)
+    except OverflowError:
+        return 0.0 if score < 0 else 1.0
 
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -80,10 +90,38 @@ def build_components(include_graph: bool = False) -> RAGComponents:
     )
 
 
+def contextualize_query(query: str, history: Optional[List[Dict[str, str]]], llm) -> str:
+    if not history:
+        return query
+
+    history_str = "\n".join([f"{msg['role'].capitalize()}: {msg['content']}" for msg in history[-4:]])
+    prompt = f"""Given the following recent conversation history and a follow-up user message:
+- If the follow-up message is a conversational remark, verification, or meta-question (e.g., "are you sure?", "why?", "elaborate", "can you clarify?", "tell me more"), rephrase it into a complete, standalone technical search query focusing on the core technical topic discussed in the previous messages.
+- Otherwise, rephrase the follow-up question into a standalone technical question containing all necessary context for documentation lookup.
+- Do NOT answer the question. Return ONLY the rephrased standalone technical query.
+
+Recent Conversation History:
+{history_str}
+
+Follow-up User Message: {query}
+
+Standalone Technical Query:"""
+
+    try:
+        response = llm.invoke(prompt)
+        standalone_query = response.content.strip().strip('"').strip("'")
+        print(f"[RAG Memory] Contextualized Query: '{query}' -> '{standalone_query}'")
+        return standalone_query if standalone_query else query
+    except Exception as exc:
+        print(f"[RAG Memory] Contextualize query error: {exc}. Using original query.")
+        return query
+
+
 def rag(
     query,
     retriever,
     llm,
+    history: Optional[List[Dict[str, str]]] = None,
     top_k=10,
     return_context=False,
     reranker=None,
@@ -93,7 +131,13 @@ def rag(
 ):
     print(f"\n=======================================================")
     print(f"[RAG Pipeline] New Query Received: \"{query}\"")
+    if history:
+        print(f"[RAG Memory] Chat History provided ({len(history)} turns)")
     print(f"=======================================================")
+
+    search_query = query
+    if history:
+        search_query = contextualize_query(query, history, llm)
 
     tracing_context = tracing_context or {}
 
@@ -111,15 +155,15 @@ def rag(
         metadata=trace_metadata,
     ), start_span(
         trace_name,
-        input_payload={"query": query, "top_k": top_k},
+        input_payload={"query": query, "search_query": search_query, "top_k": top_k},
         metadata={"component": "rag-pipeline"},
     ) as root_span:
         with start_span(
             "retrieve-base",
-            input_payload={"query": query, "top_k": top_k},
+            input_payload={"query": search_query, "top_k": top_k},
             metadata={"component": "retrieval"},
         ) as retrieval_span:
-            base_results = retriever.retrieve(query, top_k=top_k)
+            base_results = retriever.retrieve(search_query, top_k=top_k)
             if retrieval_span is not None:
                 retrieval_span.update(output={"result_count": len(base_results)})
 
@@ -201,27 +245,34 @@ def rag(
             {"chapter": doc.get("chapter"), "page": doc.get("page"), "score": doc.get("score")}
             for doc in unique_results
         ]
-        confidence = max([doc["score"] for doc in unique_results])
+        confidence = normalize_confidence(max([doc["score"] for doc in unique_results]))
+
+        formatted_history = ""
+        if history:
+            formatted_history = "\nRecent Conversation History:\n" + "\n".join(
+                [f"{m['role'].capitalize()}: {m['content']}" for m in history[-4:]]
+            ) + "\n"
 
         prompt = f"""
-You are a technical documentation assistant.
+You are an expert technical documentation assistant.
 
-STRICT RULES:
-- Use ONLY the provided context.
-- Do NOT assume missing values.
-- If something is not explicitly stated, say "Not specified in context".
-
+GUIDELINES:
+- Base your technical answers on the provided Context and Recent Conversation History.
+- If the user asks a conversational, verification, or clarification question (e.g., "Are you sure?", "Why?", "Can you elaborate?", "Explain simpler"), use the Recent Conversation History to identify the technical topic being discussed, and use the Context to confirm, explain the technical reasoning, or elaborate clearly.
+- Do NOT say "the context does not mention 'are you sure?'". Address the underlying technical topic being discussed in the conversation.
+- If specific technical details requested are absent from the context, state "Not specified in the documentation".
+{formatted_history}
 When answering:
 - Identify ALL relevant components involved in the query.
 - Provide a complete, structured explanation covering those components.
 - Do NOT skip necessary steps if they are mentioned in context.
 
-If the question involves configuration, provide step-by-step answer.
+If the question involves configuration, provide a step-by-step answer.
 
 Context:
 {context}
 
-Question:
+User Question / Follow-up:
 {query}
 
 FORMAT:
@@ -236,7 +287,7 @@ Confidence:
 <High / Medium / Low>
 
 Follow-up Questions:
-<generate 2 or 3 highly relevant follow-up question based on the topic and context provided>
+<generate 2 or 3 highly relevant follow-up questions based on the topic and context provided>
 """
 
         with start_span(

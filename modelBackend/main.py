@@ -17,8 +17,14 @@ except ImportError:
     from rag import RAGComponents, build_components, llm, rag
 
 
+class MessageTurn(BaseModel):
+    role: str
+    content: str
+
+
 class QueryRequest(BaseModel):
     query: str
+    history: Optional[List[MessageTurn]] = None
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -81,10 +87,16 @@ def get_components(request: Request) -> RAGComponents:
 def query_model(request: QueryRequest, components: RAGComponents = Depends(get_components)):
     try:
         request_session_id = request.session_id or str(uuid.uuid4())
+        history_turns = (
+            [{"role": turn.role, "content": turn.content} for turn in request.history]
+            if request.history
+            else None
+        )
         response = rag(
             request.query,
             components.retriever,
             llm,
+            history=history_turns,
             top_k=settings.rag_top_k,
             return_context=False,
             reranker=components.reranker,
