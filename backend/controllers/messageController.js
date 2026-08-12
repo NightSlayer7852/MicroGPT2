@@ -72,6 +72,11 @@ exports.sendMessage = async (req, res) => {
 
   } catch (error) {
     console.error("Error sending message:", error);
-    res.status(500).json({ message: 'Server error while sending message' });
+    if (error.status === 429) {
+      return res.status(429).json({
+        message: error.message || 'Groq API Rate Limit Reached. Please try again in a few minutes.'
+      });
+    }
+    res.status(500).json({ message: error.message || 'Server error while sending message' });
   }
 };

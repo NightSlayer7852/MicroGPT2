@@ -24,6 +24,12 @@ export default function Dashboard() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "info" } | null>(null);
+
+  const showToast = (message: string, type: "error" | "info" = "error") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 6000);
+  };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -107,8 +113,14 @@ export default function Dashboard() {
         return [...filtered, response.userMessage, response.assistantMessage];
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send message:", error);
+      const errMsg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
+        "Failed to send message";
+      showToast(errMsg, "error");
     } finally {
       setIsTyping(false);
     }
@@ -136,6 +148,15 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-wrapper">
+      {toast && (
+        <div className={`toast-banner ${toast.type}`}>
+          <div className="toast-content">
+            <span className="toast-icon">⚠️</span>
+            <span>{toast.message}</span>
+          </div>
+          <button className="toast-close" onClick={() => setToast(null)}>&times;</button>
+        </div>
+      )}
       <nav className="top-nav">
         <div className="nav-right" style={{ marginLeft: "auto" }}>
           <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle Dark Mode">

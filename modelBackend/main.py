@@ -112,10 +112,21 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
         )
         return QueryResponse(answer=response["answer"], sources=response["sources"], confidence=response["confidence"])
     except Exception as exc:
-        print(f"[API Error] ❌ Exception processing query: {exc}")
+        err_msg = str(exc)
+        print(f"[API Error] ❌ Exception processing query: {err_msg}")
+        if "RateLimitError" in err_msg or "rate_limit_exceeded" in err_msg or "429" in err_msg:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit reached for Groq API. Please wait a few minutes before trying again."
+            )
+        elif "organization_restricted" in err_msg:
+            raise HTTPException(
+                status_code=403,
+                detail="Groq organization restricted. Please check your API key on console.groq.com."
+            )
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=err_msg)
 
 
 @app.get("/")

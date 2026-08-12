@@ -110,13 +110,22 @@ exports.generateAiResponse = async (conversationId, userPrompt) => {
     return assistantMessage;
 
   } catch (error) {
-    console.error("FastAPI Connection Error:", error.message);
-    
-    // Fallback: If the Python server is offline, save an error message to the chat
+    const status = error.response?.status || 500;
+    const detail = error.response?.data?.detail || error.message;
+
+    console.error("FastAPI Error:", status, detail);
+
+    if (status === 429 || (typeof detail === 'string' && detail.includes("Rate limit"))) {
+      const rateLimitErr = new Error("Rate limit reached for Groq API. Please wait a few minutes before trying again.");
+      rateLimitErr.status = 429;
+      rateLimitErr.detail = detail;
+      throw rateLimitErr;
+    }
+
     const fallbackMessage = await Message.create({
       conversationId,
       role: 'assistant',
-      content: "⚠️ **Connection Error:** I couldn't reach the RAG engine. Please ensure the Python FastAPI server and Ngrok tunnel are running.",
+      content: "⚠️ **Connection Error:** I couldn't reach the RAG engine. Please ensure the Python FastAPI server is running.",
     });
 
     return fallbackMessage;
