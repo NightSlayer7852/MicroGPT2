@@ -17,13 +17,13 @@ services:
   model-backend:
     build:
       context: .
-      dockerfile: modelBackend/Dockerfile
+      dockerfile: model/Dockerfile
     container_name: microgpt-model-backend
     restart: always
     ports:
       - "8001:8001"
     env_file:
-      - ./modelBackend/.env
+      - ./model/.env
     environment:
       - PORT=8001
 
