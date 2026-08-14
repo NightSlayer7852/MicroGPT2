@@ -37,30 +37,43 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
     let aiData = {};
 
     if (modelUrl.includes('hf.space')) {
-      const gradioUrl = modelUrl.replace(/\/+$/, '').replace(/\/query$/, '') + '/call/predict';
-      const response = await axios.post(gradioUrl, {
+      const baseUrl = modelUrl.replace(/\/+$/, '').replace(/\/query$/, '');
+      const callUrl = `${baseUrl}/call/predict`;
+      
+      const postRes = await axios.post(callUrl, {
         data: [userPrompt, stmManual || 'STM32F1']
       }, {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      if (typeof response.data === 'string' && response.data.includes('data:')) {
-        const lines = response.data.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            try {
-              const parsed = JSON.parse(line.slice(5).trim());
-              if (Array.isArray(parsed) && parsed[0]) {
-                aiData = { answer: parsed[0], sources: [], confidence: 1.0 };
-              }
-            } catch (e) {}
-          }
-        }
-      } else if (response.data && Array.isArray(response.data.data)) {
-        aiData = { answer: response.data.data[0], sources: [], confidence: 1.0 };
-      } else {
-        aiData = { answer: typeof response.data === 'string' ? response.data : JSON.stringify(response.data), sources: [], confidence: 1.0 };
+      const eventId = postRes.data?.event_id;
+      if (!eventId) {
+        throw new Error("No event_id returned from Gradio Space queue");
       }
+
+      const getUrl = `${baseUrl}/call/predict/${eventId}`;
+      const getRes = await axios.get(getUrl);
+
+      const rawData = typeof getRes.data === 'string' ? getRes.data : JSON.stringify(getRes.data);
+      let answerText = "";
+
+      const lines = rawData.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data:')) {
+          try {
+            const parsed = JSON.parse(line.slice(5).trim());
+            if (Array.isArray(parsed) && parsed[0]) {
+              answerText = parsed[0];
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (!answerText) {
+        answerText = rawData;
+      }
+
+      aiData = { answer: answerText, sources: [], confidence: 1.0 };
     } else {
       if (modelUrl && !modelUrl.endsWith('/query')) {
         modelUrl = modelUrl.replace(/\/+$/, '') + '/query';
