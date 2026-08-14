@@ -1,7 +1,7 @@
+import spaces
 import os
 import uvicorn
 import gradio as gr
-import spaces
 
 try:
     from main import app as fastapi_app, execute_rag_pipeline, llm
