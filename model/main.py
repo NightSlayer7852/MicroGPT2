@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 try:
     import spaces
     gpu_decorator = spaces.GPU(duration=60)
 except Exception:
     def gpu_decorator(func):
         return func
-
-from __future__ import annotations
 
 import os
 import uuid
