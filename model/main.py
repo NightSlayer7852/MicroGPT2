@@ -90,6 +90,30 @@ def get_components(request: Request) -> RAGComponents:
     return request.app.state.components
 
 
+try:
+    import spaces
+    gpu_decorator = spaces.GPU
+except Exception:
+    def gpu_decorator(func):
+        return func
+
+@gpu_decorator
+def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, rerank_top_k, graph_retriever, tracing_context, collection_name):
+    return rag(
+        query,
+        retriever,
+        llm,
+        history=history_turns,
+        top_k=top_k,
+        return_context=False,
+        reranker=reranker,
+        rerank_top_k=rerank_top_k,
+        graph_retriever=graph_retriever,
+        tracing_context=tracing_context,
+        collection_name=collection_name,
+    )
+
+
 @app.post("/query", response_model=QueryResponse)
 def query_model(request: QueryRequest, components: RAGComponents = Depends(get_components)):
     try:
@@ -99,24 +123,23 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
             if request.history
             else None
         )
-        response = rag(
+        response = execute_rag_pipeline(
             request.query,
             components.retriever,
             llm,
-            history=history_turns,
-            top_k=settings.rag_top_k,
-            return_context=False,
-            reranker=components.reranker,
-            rerank_top_k=settings.rerank_top_k,
-            graph_retriever=components.graph_retriever,
-            tracing_context={
+            history_turns,
+            settings.rag_top_k,
+            components.reranker,
+            settings.rerank_top_k,
+            components.graph_retriever,
+            {
                 "trace_name": "api-query",
                 "user_id": request.user_id,
                 "session_id": request_session_id,
                 "tags": request.tags or ["api", "microgpt", "rag"],
                 "metadata": {"endpoint": "/query"},
             },
-            collection_name=request.collection_name,
+            request.collection_name,
         )
         return QueryResponse(answer=response["answer"], sources=response["sources"], confidence=response["confidence"])
     except Exception as exc:
