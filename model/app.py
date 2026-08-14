@@ -1,25 +1,54 @@
 import os
-import gradio as gr
+try:
+    import spaces
+except Exception:
+    pass
 import uvicorn
+import gradio as gr
 
-from main import app as fastapi_app
+try:
+    from main import app as fastapi_app, execute_rag_pipeline, llm
+    from config import settings
+except ImportError:
+    from model.main import app as fastapi_app, execute_rag_pipeline, llm
+    from model.config import settings
 
 
-with gr.Blocks(title="MicroGPT RAG API Engine") as demo:
-    gr.Markdown("# ⚡ MicroGPT RAG API Engine")
-    gr.Markdown(
-        "This Space runs the **MicroGPT FastAPI RAG Backend Engine**.\n\n"
-        "- **API Endpoint**: `POST /query`\n"
-        "- **Status**: Active & Serving Inferences"
-    )
+def predict_gradio(query: str) -> str:
+    if not query or not query.strip():
+        return "Please enter a valid question."
+    try:
+        components = fastapi_app.state.components
+        res = execute_rag_pipeline(
+            query.strip(),
+            components.retriever,
+            llm,
+            None,
+            settings.rag_top_k,
+            components.reranker,
+            settings.rerank_top_k,
+            components.graph_retriever,
+            {"trace_name": "gradio-space-ui"},
+            None,
+        )
+        return res.get("answer", "No answer generated.")
+    except Exception as exc:
+        return f"Error executing RAG query: {exc}"
 
+
+demo = gr.Interface(
+    fn=predict_gradio,
+    inputs=gr.Textbox(lines=3, placeholder="Ask a question about STM32 microcontrollers..."),
+    outputs="text",
+    title="MicroGPT RAG API Engine",
+    description="FastAPI Backend for MicroGPT RAG System with ZeroGPU inference capability."
+)
 
 app = gr.mount_gradio_app(
     fastapi_app,
     demo,
-    path="/"
+    path="/ui"
 )
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "7860"))

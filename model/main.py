@@ -1,3 +1,10 @@
+try:
+    import spaces
+    gpu_decorator = spaces.GPU(duration=60)
+except Exception:
+    def gpu_decorator(func):
+        return func
+
 from __future__ import annotations
 
 import os
@@ -90,12 +97,7 @@ def get_components(request: Request) -> RAGComponents:
     return request.app.state.components
 
 
-try:
-    import spaces
-    gpu_decorator = spaces.GPU
-except Exception:
-    def gpu_decorator(func):
-        return func
+
 
 @gpu_decorator
 def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, rerank_top_k, graph_retriever, tracing_context, collection_name):
