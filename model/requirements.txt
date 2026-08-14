@@ -14,3 +14,4 @@ pypdf
 gradio
 requests
 fastembed
+huggingface_hub<0.24.0
