@@ -16,8 +16,8 @@ services:
   # 2. FastAPI Model Backend (Python / RAG)
   model-backend:
     build:
-      context: .
-      dockerfile: model/Dockerfile
+      context: ./model
+      dockerfile: Dockerfile
     container_name: microgpt-model-backend
     restart: always
     ports:
