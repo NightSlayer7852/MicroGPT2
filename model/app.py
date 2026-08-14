@@ -1,8 +1,4 @@
 import os
-try:
-    import spaces
-except Exception:
-    pass
 import uvicorn
 import gradio as gr
 

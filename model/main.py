@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-try:
-    import spaces
-    gpu_decorator = spaces.GPU(duration=60)
-except Exception:
-    def gpu_decorator(func):
-        return func
-
 import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
+import spaces
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -99,7 +93,7 @@ def get_components(request: Request) -> RAGComponents:
 
 
 
-@gpu_decorator
+@spaces.GPU(duration=60)
 def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, rerank_top_k, graph_retriever, tracing_context, collection_name):
     return rag(
         query,
