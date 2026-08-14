@@ -1,14 +1,16 @@
 import spaces
 import os
-import uvicorn
 import gradio as gr
 
 try:
-    from main import app as fastapi_app, execute_rag_pipeline, llm
     from config import settings
+    from rag import build_components, llm, rag
 except ImportError:
-    from model.main import app as fastapi_app, execute_rag_pipeline, llm
     from model.config import settings
+    from model.rag import build_components, llm, rag
+
+# Initialize RAG components directly for Gradio Space
+components = build_components(include_graph=True)
 
 
 @spaces.GPU(duration=60)
@@ -17,23 +19,20 @@ def predict_gradio(query: str) -> str:
         return "Please enter a valid question."
 
     try:
-        components = fastapi_app.state.components
-
-        res = execute_rag_pipeline(
+        res = rag(
             query.strip(),
             components.retriever,
             llm,
-            None,
-            settings.rag_top_k,
-            components.reranker,
-            settings.rerank_top_k,
-            components.graph_retriever,
-            {"trace_name": "gradio-space-ui"},
-            None,
+            history=None,
+            top_k=settings.rag_top_k,
+            return_context=False,
+            reranker=components.reranker,
+            rerank_top_k=settings.rerank_top_k,
+            graph_retriever=components.graph_retriever,
+            tracing_context={"trace_name": "gradio-space-ui"},
+            collection_name=None,
         )
-
         return res.get("answer", "No answer generated.")
-
     except Exception as exc:
         return f"Error executing RAG query: {exc}"
 
@@ -45,18 +44,10 @@ demo = gr.Interface(
         placeholder="Ask a question about STM32 microcontrollers..."
     ),
     outputs="text",
-    title="MicroGPT RAG API Engine",
-    description="MicroGPT RAG system with ZeroGPU inference."
+    title="MicroGPT RAG Engine",
+    description="MicroGPT RAG System running live on Hugging Face ZeroGPU."
 )
-
-
-app = gr.mount_gradio_app(
-    fastapi_app,
-    demo,
-    path="/ui"
-)
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "7860"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    demo.launch(server_name="0.0.0.0", server_port=port)
