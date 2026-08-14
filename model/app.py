@@ -1,9 +1,8 @@
+import os
 import gradio as gr
+import uvicorn
 
-try:
-    from main import app as fastapi_app
-except ImportError:
-    from model.main import app as fastapi_app
+from main import app as fastapi_app
 
 
 with gr.Blocks(title="MicroGPT RAG API Engine") as demo:
@@ -20,3 +19,12 @@ app = gr.mount_gradio_app(
     demo,
     path="/"
 )
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "7860"))
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port
+    )
