@@ -63,6 +63,7 @@ origins = [
     "http://127.0.0.1:5000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://microgpt-vert.vercel.app",
     "https://micro-gpt-frontend.vercel.app",
     "https://micro-gpt-backend.vercel.app",
 ]
@@ -71,9 +72,14 @@ frontend_url = os.getenv("FRONTEND_URL")
 if frontend_url and frontend_url not in origins:
     origins.append(frontend_url)
 
+client_url = os.getenv("CLIENT_URL")
+if client_url and client_url not in origins:
+    origins.append(client_url)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
