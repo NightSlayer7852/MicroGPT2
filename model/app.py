@@ -19,7 +19,10 @@ with gr.Blocks(title="MicroGPT RAG API Engine") as demo:
 # 3. Mount your existing FastAPI application into Gradio
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
 
-# 4. Launch Gradio's managed server event loop for HF Space lifecycle
+# 4. Hugging Face Space module runner loads 'demo' as top-level application
+demo = app
+
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.getenv("PORT", "7860"))
-    demo.launch(server_name="0.0.0.0", server_port=port, allowed_paths=["*"])
+    uvicorn.run(app, host="0.0.0.0", port=port)
