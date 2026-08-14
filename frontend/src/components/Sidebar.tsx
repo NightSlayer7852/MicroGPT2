@@ -7,6 +7,7 @@ import {
     LogOut,
     PanelLeftClose,
     PanelLeftOpen,
+    Menu,
     ChevronUp,
     Sun,
     Moon,
@@ -101,29 +102,78 @@ export default function Sidebar() {
         }
     };
 
+    const groupConversations = (convs: Conversation[]) => {
+        const groups: { label: string; items: Conversation[] }[] = [
+            { label: "Today", items: [] },
+            { label: "Yesterday", items: [] },
+            { label: "Previous 7 Days", items: [] },
+            { label: "Older", items: [] }
+        ];
+
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const yesterdayStart = todayStart - 86400000;
+        const sevenDaysStart = todayStart - 6 * 86400000;
+
+        convs.forEach((conv) => {
+            const time = new Date(conv.updatedAt || conv.createdAt).getTime();
+            if (time >= todayStart) {
+                groups[0].items.push(conv);
+            } else if (time >= yesterdayStart) {
+                groups[1].items.push(conv);
+            } else if (time >= sevenDaysStart) {
+                groups[2].items.push(conv);
+            } else {
+                groups[3].items.push(conv);
+            }
+        });
+
+        return groups.filter(g => g.items.length > 0);
+    };
+
+    const categorizedGroups = groupConversations(conversations);
+
     return (
         <aside className={`sidebar ${collapsed ? "collapsed" : "expanded"}`}>
             
             {/* Logo Section */}
-            <div className="sidebar-header" style={{ 
-                flexDirection: collapsed ? 'column' : 'row', 
-                alignItems: 'center',
-                gap: collapsed ? '16px' : '0'
-            }}>
-                <div className="sidebar-brand" style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}>
-                    <div className="logo-container">
-                        <img 
-                            src={logoSrc} 
-                            alt="MicroGPT Logo" 
-                            style={{ width: "32px", height: "32px", objectFit: "contain" }}
-                        />
+            <div className="sidebar-header">
+                {collapsed ? (
+                    <button 
+                        className="collapsed-brand-btn" 
+                        onClick={() => setCollapsed(false)}
+                        title="Expand sidebar"
+                    >
+                        <div className="logo-toggle-wrapper">
+                            <img 
+                                src={logoSrc} 
+                                alt="MicroGPT Logo" 
+                                className="brand-logo-img"
+                            />
+                            <div className="toggle-icon-overlay">
+                                <PanelLeftOpen size={20} />
+                            </div>
+                        </div>
+                    </button>
+                ) : (
+                    <div className="sidebar-header-expanded">
+                        <div className="sidebar-brand">
+                            <img 
+                                src={logoSrc} 
+                                alt="MicroGPT Logo" 
+                                style={{ width: "32px", height: "32px", objectFit: "contain" }}
+                            />
+                            <span className="brand-name">μGPT</span>
+                        </div>
+                        <button 
+                            onClick={() => setCollapsed(true)} 
+                            className="toggle-btn" 
+                            title="Collapse sidebar"
+                        >
+                            <PanelLeftClose size={20} />
+                        </button>
                     </div>
-                    {!collapsed && <span className="brand-name">μGPT</span>}
-                </div>
-                
-                <button onClick={() => setCollapsed(!collapsed)} className="toggle-btn" style={{ alignSelf: collapsed ? 'center' : 'auto' }}>
-                    {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-                </button>
+                )}
             </div>
 
             {/* Navigation & History Section */}
@@ -139,33 +189,35 @@ export default function Sidebar() {
                 </button>
 
                 <div className="history-container">
-                    {!collapsed && conversations.length > 0 && (
-                        <p className="history-header">Recent</p>
-                    )}
-                    
-                    {conversations.map((conv) => (
-                        // 3. NEW: Changed to a <div>, added flex-between, and added the Trash icon
-                        <div
-                            key={conv._id}
-                            className={`sidebar-item history-item ${collapsed ? "collapsed-item" : ""} ${currentChatId === conv._id ? "active" : ""}`}
-                            onClick={() => handleChatSelect(conv._id)}
-                            title={conv.title}
-                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
-                                <div className="item-icon"><MessageCircle size={16} /></div>
-                                {!collapsed && <span className="item-label truncate">{conv.title}</span>}
-                            </div>
-                            
+                    {categorizedGroups.map((group) => (
+                        <div key={group.label} className="history-group">
                             {!collapsed && (
-                                <button
-                                    className="delete-chat-btn"
-                                    onClick={(e) => handleDeleteChat(e, conv._id)}
-                                    title="Delete chat"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
+                                <p className="history-header">{group.label}</p>
                             )}
+                            {group.items.map((conv) => (
+                                <div
+                                    key={conv._id}
+                                    className={`sidebar-item history-item ${collapsed ? "collapsed-item" : ""} ${currentChatId === conv._id ? "active" : ""}`}
+                                    onClick={() => handleChatSelect(conv._id)}
+                                    title={conv.title}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                                        <div className="item-icon"><MessageCircle size={16} /></div>
+                                        {!collapsed && <span className="item-label truncate">{conv.title}</span>}
+                                    </div>
+                                    
+                                    {!collapsed && (
+                                        <button
+                                            className="delete-chat-btn"
+                                            onClick={(e) => handleDeleteChat(e, conv._id)}
+                                            title="Delete chat"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     ))}
                 </div>

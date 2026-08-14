@@ -52,26 +52,54 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
     const aiData = response.data; // Expected: { answer, sources, confidence }
 
     // ==========================================
-    // NEW: Parse the Follow-up Questions out of the text
+    // PARSE SECTIONS: Answer, Citations, Follow-up Questions
     // ==========================================
     const rawAnswerText = aiData.answer || "";
     
-    // Split the text exactly where the FastAPI appends the follow-ups
-    const parts = rawAnswerText.split("Follow-up Questions:");
-    
-    // The main answer is everything before the split
-    const mainContent = parts[0].trim(); 
-    
-    // If there is a second part, extract the numbered questions
+    // 1. Extract Follow-up Questions
+    const followUpParts = rawAnswerText.split(/Follow-up Questions:/i);
     let followUps = [];
-    if (parts.length > 1) {
-      followUps = parts[1]
+    if (followUpParts.length > 1) {
+      followUps = followUpParts[1]
         .split('\n')
-        // Find lines that start with a number and a dot (e.g., "1. ")
         .filter(line => line.trim().match(/^\d+\./)) 
-        // Remove the "1. " numbering so you just have the clean question text
         .map(line => line.replace(/^\d+\.\s*/, '').trim()); 
     }
+
+    const textBeforeFollowUps = followUpParts[0];
+
+    // 2. Extract Citations (matches "Citations:", "**Citations:**", "Citation:")
+    const citationParts = textBeforeFollowUps.split(/(?:\*\*|###\s*)?Citations(?:\*\*|:)?/i);
+    let mainContent = citationParts[0].trim();
+    let extractedCitations = [];
+
+    if (citationParts.length > 1) {
+      extractedCitations = citationParts[1]
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => line.replace(/^[-*•\d.]+\s*/, '').trim())
+        .filter(text => text.length > 0)
+        .map(text => ({ text, referenceId: '#' }));
+    }
+
+    // 3. Map FastAPI "sources" to Frontend format
+    const mappedSources = (aiData.sources || []).map((src) => ({
+      title: src.chapter || "Extracted Document",
+      url: src.page ? `Page ${src.page}` : "#",
+      peripheral: "RAG Source"
+    }));
+
+    // Fallback: If no citations extracted from text, build them from Qdrant sources
+    if (extractedCitations.length === 0 && mappedSources.length > 0) {
+      extractedCitations = mappedSources.map(s => ({
+        text: s.url && s.url !== '#' ? `${s.title} (${s.url})` : s.title,
+        referenceId: '#'
+      }));
+    }
+
+    // 4. Strip leading "Answer:" label from answer text if present
+    mainContent = mainContent.replace(/^(?:\*\*|###\s*)?Answer(?:\*\*|:)?\s*/i, '').trim();
     // ==========================================
 
     // 2. Format the confidence score (strictly clamped between 0 and 100 for MongoDB)
@@ -84,20 +112,13 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
     if (score >= 80) confidenceLevel = 'High';
     else if (score >= 50) confidenceLevel = 'Medium';
 
-    // 3. Map FastAPI "sources" to the Frontend's expected format
-    const mappedSources = (aiData.sources || []).map((src) => ({
-      title: src.chapter || "Extracted Document",
-      url: src.page ? `Page ${src.page}` : "#",
-      peripheral: "RAG Source"
-    }));
-
     // 4. Construct the RAG Data for MongoDB
     const ragData = {
-      citations: [], // Leave empty unless your FastAPI specifically returns citation text snippets
+      citations: extractedCitations,
       sources: mappedSources,
       confidenceScore: score,
       confidenceLevel: confidenceLevel,
-      followUpQuestions: followUps // <-- Inject the extracted questions here
+      followUpQuestions: followUps
     };
 
     // 5. Save the AI's response to the database

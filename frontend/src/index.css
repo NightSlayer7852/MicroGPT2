@@ -31,10 +31,19 @@ body.light-theme {
 /* =========================================
    2. GLOBAL RESET & SMOOTH TRANSITIONS
    ========================================= */
+::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+  height: 0px;
+  background: transparent;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 body {
@@ -44,7 +53,7 @@ body {
   /* This makes the theme toggle look buttery smooth */
   transition: background-color 0.4s ease, color 0.4s ease;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 button {
@@ -123,13 +132,22 @@ button {
   opacity: 0.8;
 }
 
+.dashboard-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 /* --- HERO SECTION & ORB --- */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 0 24px 24px;
+  padding: 0 24px 20px;
+  overflow: hidden;
+  position: relative;
 }
 
 .hero-section {
@@ -138,8 +156,9 @@ button {
   align-items: center;
   justify-content: center;
   flex: 1;
+  overflow-y: auto;
   text-align: center;
-  margin-top: 40px;
+  padding-top: 20px;
 }
 
 /* The Animated Purple Orb */
@@ -227,18 +246,27 @@ button {
 
 /* --- INPUT AREA --- */
 .input-container-wrapper {
-  max-width: 800px;
+  max-width: 720px;
   width: 100%;
   margin: 0 auto;
+  flex-shrink: 0;
+  padding: 8px 0 0;
+  background: var(--bg-primary);
+  z-index: 10;
 }
 
 .input-box {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.4s, border-color 0.4s;
+  border-radius: 20px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: background-color 0.4s, border-color 0.4s, box-shadow 0.3s;
+}
+
+.input-box:focus-within {
+  border-color: var(--accent-purple);
+  box-shadow: 0 6px 20px rgba(147, 51, 234, 0.12);
 }
 
 .chat-input {
@@ -246,12 +274,12 @@ button {
   background: transparent;
   border: none;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 0.92rem;
   font-family: inherit;
   resize: none;
   outline: none;
-  line-height: 1.5;
-  margin-bottom: 12px;
+  line-height: 1.4;
+  margin-bottom: 6px;
 }
 
 .chat-input::placeholder {
@@ -289,9 +317,9 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
-  margin-top: 16px;
+  margin-top: 8px;
   padding: 0 8px;
 }
 
@@ -309,15 +337,17 @@ kbd {
    ========================================= */
 .sidebar {
   transition: width 0.3s ease, padding 0.3s ease;
-  margin: 16px;
-  border-radius: 24px;
+  margin: 0;
+  border-radius: 0;
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-top: none;
+  border-left: none;
+  border-bottom: none;
   display: flex;
   flex-direction: column;
-  padding: 24px 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  height: calc(100vh - 32px);
+  padding: 20px 16px;
+  height: 100vh;
   position: relative;
   z-index: 50;
 }
@@ -334,32 +364,21 @@ kbd {
 
 /* Header */
 .sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
   width: 100%;
 }
 
-.sidebar.collapsed .sidebar-header {
-  justify-content: center;
+.sidebar-header-expanded {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.brand-icon {
-  width: 40px;
-  height: 40px;
-  background: var(--accent-purple);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px var(--orb-shadow);
 }
 
 .brand-name {
@@ -372,12 +391,76 @@ kbd {
   padding: 8px;
   border-radius: 12px;
   color: var(--text-secondary);
-  transition: background 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toggle-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.collapsed-brand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.collapsed-brand-btn:hover {
+  background: var(--bg-hover);
+}
+
+.logo-toggle-wrapper {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toggle-icon-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Collapsed Hover: Hide Logo, Show Expand Icon */
+.collapsed-brand-btn:hover .brand-logo-img {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+.collapsed-brand-btn:hover .toggle-icon-overlay {
+  opacity: 1;
+  transform: scale(1);
 }
 
 /* Navigation */
@@ -559,8 +642,8 @@ kbd {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow-y: auto;
-  /* Allows scrolling only inside the main content area */
+  overflow: hidden;
+  /* Prevents scrolling of the main layout container */
   position: relative;
 }
 
@@ -1375,29 +1458,36 @@ input:checked+.slider:before {
 }
 
 /* =========================================
-   12. STM MANUAL DROPDOWN UI
+   12. STM MANUAL DROPDOWN & FLOATING INPUT UI
    ========================================= */
 .model-selector-container {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   padding: 4px 10px;
-  border-radius: 8px;
-  transition: border-color 0.2s;
+  border-radius: 20px;
+  transition: all 0.2s ease;
 }
 
 .model-selector-container:hover {
-  border-color: var(--text-secondary);
+  border-color: var(--accent-purple);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .manual-select-label {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+}
+
+.select-pill-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .manual-dropdown-select {
@@ -1405,13 +1495,398 @@ input:checked+.slider:before {
   color: var(--text-primary);
   border: none;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   outline: none;
-  padding-right: 4px;
+  padding-right: 18px;
+  appearance: none;
+}
+
+.select-chevron {
+  position: absolute;
+  right: 0;
+  pointer-events: none;
+  color: var(--text-secondary);
 }
 
 .manual-dropdown-select option {
   background: var(--bg-secondary);
   color: var(--text-primary);
+}
+
+/* =========================================
+   13. CHATGPT / GEMINI UI STYLING EXTENSIONS
+   ========================================= */
+
+/* Top Navigation Title */
+.nav-center-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sparkle-icon {
+  color: var(--accent-purple);
+  animation: spinGlow 4s linear infinite;
+}
+
+@keyframes spinGlow {
+  0% { transform: rotate(0deg); opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0.8; }
+}
+
+/* Code Block Component with Copy Header */
+.code-block-wrapper {
+  margin: 16px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(140, 140, 140, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #181825;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.78rem;
+}
+
+.code-lang-label {
+  color: #a6adc8;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.code-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #a6adc8;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cdd6f4;
+}
+
+.success-icon {
+  color: #10b981;
+}
+
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: #1e1e2e !important;
+  padding: 16px !important;
+  font-family: 'Fira Code', monospace !important;
+  font-size: 0.88rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Assistant Message Action Toolbar */
+.assistant-action-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.action-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-pill-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--accent-purple);
+}
+
+.action-pill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hero Suggestion Cards Upgrade */
+.hero-section {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.greeting {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  font-size: 2.2rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+}
+
+.sub-greeting {
+  font-weight: 500;
+  font-size: 1.15rem;
+  color: var(--text-secondary);
+}
+
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.suggestion-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 18px 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.suggestion-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-purple);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  background: var(--bg-hover);
+}
+
+.suggestion-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(147, 51, 234, 0.1);
+  color: var(--accent-purple);
+  flex-shrink: 0;
+}
+
+.suggestion-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.suggestion-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* History Grouping in Sidebar */
+.history-group {
+  margin-bottom: 16px;
+}
+
+.history-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  padding: 6px 16px;
+  margin-bottom: 4px;
+}
+
+/* =========================================
+   14. THEME-MATCHED CITATIONS GREY BOX
+   ========================================= */
+.citations-box {
+  margin-top: 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: all 0.2s ease;
+}
+
+.citations-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.citations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.citation-item {
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+/* =========================================
+   15. CUSTOM THEME-MATCHED MANUAL DROPDOWN
+   ========================================= */
+.model-selector-container {
+  position: relative;
+  display: inline-block;
+}
+
+.manual-pill-btn,
+.manual-pill-btn:focus,
+.manual-pill-btn:focus-visible,
+.manual-pill-btn:active {
+  outline: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.manual-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 4px 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.manual-pill-btn:hover {
+  border-color: var(--accent-purple);
+  background: var(--bg-hover);
+}
+
+.manual-select-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-purple);
+}
+
+.manual-selected-value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.select-chevron {
+  color: var(--text-secondary);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.select-chevron.open {
+  transform: rotate(180deg);
+  color: var(--accent-purple);
+}
+
+/* Custom Dropdown Popover Menu */
+.manual-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 160px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.manual-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.manual-dropdown-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.manual-dropdown-item.active {
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--accent-purple);
+  font-weight: 700;
+}
+
+.manual-check-icon {
+  color: var(--accent-purple);
+  flex-shrink: 0;
 }
