@@ -14,8 +14,11 @@ demo = gr.Interface(
     description="FastAPI Backend for MicroGPT RAG System. Accessible at /query endpoint."
 )
 
-# Mount FastAPI app with Gradio interface
+# Mount Gradio interface onto FastAPI app
 app = gr.mount_gradio_app(fastapi_app, demo, path="/ui")
+
+# Hugging Face Space runner loads 'demo' as top-level application
+demo = app
 
 if __name__ == "__main__":
     import uvicorn
