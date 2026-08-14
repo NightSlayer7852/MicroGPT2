@@ -44,7 +44,7 @@ services:
     environment:
       - PORT=8000
       - MONGO_URI=mongodb://mongodb:27017/microgpt
-      - FASTAPI_URL=http://model-backend:8001/query
+      - MODEL_URL=http://model-backend:8001/query
 
   # 4. React Frontend (Nginx SPA)
   frontend:

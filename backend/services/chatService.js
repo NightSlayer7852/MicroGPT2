@@ -33,11 +33,11 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
     }
 
     // 1. Send the request to model backend (FastAPI or Gradio Space)
-    let fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000/query';
+    let modelUrl = process.env.MODEL_URL || process.env.FASTAPI_URL || 'http://localhost:8000/query';
     let aiData = {};
 
-    if (fastApiUrl.includes('hf.space')) {
-      const gradioUrl = fastApiUrl.replace(/\/+$/, '').replace(/\/query$/, '') + '/call/predict';
+    if (modelUrl.includes('hf.space')) {
+      const gradioUrl = modelUrl.replace(/\/+$/, '').replace(/\/query$/, '') + '/call/predict';
       const response = await axios.post(gradioUrl, {
         data: [userPrompt, stmManual || 'STM32F1']
       }, {
@@ -62,11 +62,11 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
         aiData = { answer: typeof response.data === 'string' ? response.data : JSON.stringify(response.data), sources: [], confidence: 1.0 };
       }
     } else {
-      if (fastApiUrl && !fastApiUrl.endsWith('/query')) {
-        fastApiUrl = fastApiUrl.replace(/\/+$/, '') + '/query';
+      if (modelUrl && !modelUrl.endsWith('/query')) {
+        modelUrl = modelUrl.replace(/\/+$/, '') + '/query';
       }
 
-      const response = await axios.post(fastApiUrl, {
+      const response = await axios.post(modelUrl, {
         query: userPrompt,
         history: history,
         session_id: conversationId ? conversationId.toString() : undefined,
