@@ -32,24 +32,53 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
       }));
     }
 
-    // 1. Send the request to your FastAPI server via Ngrok / Local
+    // 1. Send the request to model backend (FastAPI or Gradio Space)
     let fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000/query';
-    if (fastApiUrl && !fastApiUrl.endsWith('/query')) {
-      fastApiUrl = fastApiUrl.replace(/\/+$/, '') + '/query';
-    }
-    
-    const response = await axios.post(fastApiUrl, {
-      query: userPrompt,
-      history: history,
-      session_id: conversationId ? conversationId.toString() : undefined,
-      collection_name: stmManual || 'STM32F1'
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
+    let aiData = {};
 
-    const aiData = response.data; // Expected: { answer, sources, confidence }
+    if (fastApiUrl.includes('hf.space')) {
+      const gradioUrl = fastApiUrl.replace(/\/+$/, '').replace(/\/query$/, '') + '/call/predict';
+      const response = await axios.post(gradioUrl, {
+        data: [userPrompt, stmManual || 'STM32F1']
+      }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (typeof response.data === 'string' && response.data.includes('data:')) {
+        const lines = response.data.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            try {
+              const parsed = JSON.parse(line.slice(5).trim());
+              if (Array.isArray(parsed) && parsed[0]) {
+                aiData = { answer: parsed[0], sources: [], confidence: 1.0 };
+              }
+            } catch (e) {}
+          }
+        }
+      } else if (response.data && Array.isArray(response.data.data)) {
+        aiData = { answer: response.data.data[0], sources: [], confidence: 1.0 };
+      } else {
+        aiData = { answer: typeof response.data === 'string' ? response.data : JSON.stringify(response.data), sources: [], confidence: 1.0 };
+      }
+    } else {
+      if (fastApiUrl && !fastApiUrl.endsWith('/query')) {
+        fastApiUrl = fastApiUrl.replace(/\/+$/, '') + '/query';
+      }
+
+      const response = await axios.post(fastApiUrl, {
+        query: userPrompt,
+        history: history,
+        session_id: conversationId ? conversationId.toString() : undefined,
+        collection_name: stmManual || 'STM32F1'
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      aiData = response.data;
+    }
 
     // ==========================================
     // PARSE SECTIONS: Answer, Citations, Follow-up Questions
