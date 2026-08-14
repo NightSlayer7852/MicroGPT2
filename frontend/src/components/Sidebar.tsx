@@ -7,7 +7,6 @@ import {
     LogOut,
     PanelLeftClose,
     PanelLeftOpen,
-    Menu,
     ChevronUp,
     Sun,
     Moon,
