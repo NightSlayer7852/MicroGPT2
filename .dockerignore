@@ -1,0 +1,8 @@
+node_modules
+.venv
+dist
+.git
+.env
+__pycache__
+*.pyc
+qdrant_data

@@ -64,7 +64,7 @@ export const chatApi = {
   /**
    * Initializes a new conversation in the database.
    */
-  createConversation: async (title: string, peripheral: string = 'General'): Promise<Conversation> => {
+  createConversation: async (title: string, peripheral: string = 'STM32F1'): Promise<Conversation> => {
     const response = await axiosClient.post('/chat/conversations', {
       title,
       peripheral
@@ -90,10 +90,11 @@ export const chatApi = {
   /**
    * Sends a user's prompt to the backend and waits for the AI's response.
    */
-  postMessage: async (conversationId: string, content: string): Promise<SendMessageResponse> => {
+  postMessage: async (conversationId: string, content: string, stmManual?: string): Promise<SendMessageResponse> => {
     const response = await axiosClient.post('/chat/messages', {
       conversationId,
-      content
+      content,
+      stmManual
     });
     return response.data;
   }

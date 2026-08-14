@@ -16,7 +16,7 @@ exports.saveUserMessage = async (conversationId, content) => {
 };
 
 
-exports.generateAiResponse = async (conversationId, userPrompt) => {
+exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
   try {
     // 0. Fetch recent conversation history from MongoDB (last 6 messages)
     let history = [];
@@ -41,7 +41,8 @@ exports.generateAiResponse = async (conversationId, userPrompt) => {
     const response = await axios.post(fastApiUrl, {
       query: userPrompt,
       history: history,
-      session_id: conversationId ? conversationId.toString() : undefined
+      session_id: conversationId ? conversationId.toString() : undefined,
+      collection_name: stmManual || 'STM32F1'
     }, {
       headers: {
         'Content-Type': 'application/json',

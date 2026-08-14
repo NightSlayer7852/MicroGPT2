@@ -1373,3 +1373,45 @@ input:checked+.slider:before {
     opacity: 1;
   }
 }
+
+/* =========================================
+   12. STM MANUAL DROPDOWN UI
+   ========================================= */
+.model-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.model-selector-container:hover {
+  border-color: var(--text-secondary);
+}
+
+.manual-select-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.manual-dropdown-select {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding-right: 4px;
+}
+
+.manual-dropdown-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}

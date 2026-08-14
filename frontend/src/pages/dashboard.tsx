@@ -21,10 +21,13 @@ export default function Dashboard() {
   const [userName, setUserName] = useState<string>(authUserName || "User"); 
 
   const [inputText, setInputText] = useState("");
+  const [selectedManual, setSelectedManual] = useState<string>("STM32F1");
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "error" | "info" } | null>(null);
+
+  const stmManuals = ["STM32F1", "STM32F4", "STM32G0", "STM32G4", "STM32L4", "STM32U5", "STM32WB", "STM32WL"];
 
   const showToast = (message: string, type: "error" | "info" = "error") => {
     setToast({ message, type });
@@ -98,7 +101,7 @@ export default function Dashboard() {
       setMessages((prev) => [...prev, tempUserMsg]);
 
       if (!currentConvId) {
-        const newConv = await chatApi.createConversation(textToSend.substring(0, 30));
+        const newConv = await chatApi.createConversation(textToSend.substring(0, 30), selectedManual);
         currentConvId = newConv._id;
         setActiveConversationId(newConv._id);
         
@@ -106,7 +109,7 @@ export default function Dashboard() {
         window.dispatchEvent(new Event("refreshSidebar"));
       }
 
-      const response = await chatApi.postMessage(currentConvId, textToSend);
+      const response = await chatApi.postMessage(currentConvId, textToSend, selectedManual);
 
       setMessages((prev) => {
         const filtered = prev.filter((m) => m._id !== tempUserMsg._id); 
@@ -229,44 +232,23 @@ export default function Dashboard() {
                     {msg.content}
                   </ReactMarkdown>
 
-                  {msg.ragData && (
+                  {msg.ragData && msg.ragData.followUpQuestions && msg.ragData.followUpQuestions.length > 0 && (
                     <div className="rag-metadata-container">
-                      <div className="rag-header">
-                        <span className="rag-title">Sources Analyzed</span>
-                        {msg.ragData.confidenceScore !== undefined && (
-                          <span className={`confidence-badge ${msg.ragData.confidenceLevel?.toLowerCase()}`}>
-                            {msg.ragData.confidenceScore}% Confidence
-                          </span>
-                        )}
-                      </div>
-                      {msg.ragData.sources && msg.ragData.sources.length > 0 && (
-                        <div className="sources-list">
-                          {msg.ragData.sources.map((source, i) => (
-                            <a key={i} href={source.url} target="_blank" rel="noreferrer" className="source-chip">
-                              [{i + 1}] {source.title}
-                            </a>
+                      <div className="follow-up-container">
+                        <p className="follow-up-title">Related Questions:</p>
+                        <div className="follow-up-list">
+                          {msg.ragData.followUpQuestions.map((q, i) => (
+                            <button 
+                              key={i} 
+                              className="follow-up-btn"
+                              onClick={() => handleSendMessage(q)}
+                              disabled={isTyping}
+                            >
+                              {q}
+                            </button>
                           ))}
                         </div>
-                      )}
-                      
-                      {/* 2. NEW: FOLLOW-UP QUESTIONS UI */}
-                      {msg.ragData.followUpQuestions && msg.ragData.followUpQuestions.length > 0 && (
-                        <div className="follow-up-container">
-                          <p className="follow-up-title">Related Questions:</p>
-                          <div className="follow-up-list">
-                            {msg.ragData.followUpQuestions.map((q, i) => (
-                              <button 
-                                key={i} 
-                                className="follow-up-btn"
-                                onClick={() => handleSendMessage(q)}
-                                disabled={isTyping}
-                              >
-                                {q}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -300,8 +282,21 @@ export default function Dashboard() {
             />
             
             <div className="input-footer">
-              <div className="model-selector">
-                MicroGPT 3.5 Smart 
+              <div className="model-selector-container">
+                <span className="manual-select-label">Manual:</span>
+                <select
+                  id="stm-manual-select"
+                  className="manual-dropdown-select"
+                  value={selectedManual}
+                  onChange={(e) => setSelectedManual(e.target.value)}
+                  title="Select STM32 Reference Manual"
+                >
+                  {stmManuals.map((manual) => (
+                    <option key={manual} value={manual}>
+                      {manual}
+                    </option>
+                  ))}
+                </select>
               </div>
               
               <div className="action-icons">

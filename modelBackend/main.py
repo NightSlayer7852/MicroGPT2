@@ -28,6 +28,7 @@ class QueryRequest(BaseModel):
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     tags: Optional[List[str]] = None
+    collection_name: Optional[str] = None
 
 
 class Source(BaseModel):
@@ -109,6 +110,7 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
                 "tags": request.tags or ["api", "microgpt", "rag"],
                 "metadata": {"endpoint": "/query"},
             },
+            collection_name=request.collection_name,
         )
         return QueryResponse(answer=response["answer"], sources=response["sources"], confidence=response["confidence"])
     except Exception as exc:

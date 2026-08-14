@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # 1. MongoDB Service
+  mongodb:
+    image: mongo:6.0
+    container_name: microgpt-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: microgpt
+    volumes:
+      - mongo_data:/data/db
+
+  # 2. FastAPI Model Backend (Python / RAG)
+  model-backend:
+    build:
+      context: .
+      dockerfile: modelBackend/Dockerfile
+    container_name: microgpt-model-backend
+    restart: always
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./modelBackend/.env
+    environment:
+      - PORT=8001
+
+  # 3. Express Node.js Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: microgpt-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+      - model-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=8000
+      - MONGO_URI=mongodb://mongodb:27017/microgpt
+      - FASTAPI_URL=http://model-backend:8001/query
+
+  # 4. React Frontend (Nginx SPA)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: microgpt-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

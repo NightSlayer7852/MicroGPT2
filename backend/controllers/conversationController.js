@@ -32,7 +32,7 @@ exports.createConversation = async (req, res) => {
     const newConversation = await Conversation.create({
       userId: req.user._id,
       title: title || 'New Chat',
-      peripheral: peripheral || 'General'
+      peripheral: peripheral || 'STM32F1'
     });
 
     res.status(201).json(newConversation);

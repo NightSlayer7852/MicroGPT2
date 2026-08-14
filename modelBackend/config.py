@@ -35,13 +35,25 @@ class Settings:
     neo4j_database: str
 
 
+AVAILABLE_COLLECTIONS = [
+    "STM32F1",
+    "STM32F4",
+    "STM32G0",
+    "STM32G4",
+    "STM32L4",
+    "STM32U5",
+    "STM32WB",
+    "STM32WL",
+]
+
+
 def get_settings() -> Settings:
     rag_top_k = int(os.getenv("RAG_TOP_K", "20"))
 
     return Settings(
         qdrant_url=os.getenv("QDRANT_URL"),
         qdrant_api_key=os.getenv("QDRANT_API_KEY"),
-        qdrant_collection_name=os.getenv("QDRANT_COLLECTION_NAME", "chapterwiseReferenceManual"),
+        qdrant_collection_name=os.getenv("QDRANT_COLLECTION_NAME", "STM32F1"),
         qdrant_local_path=os.getenv("QDRANT_LOCAL_PATH", "./qdrant_data"),
         sparse_model_name=os.getenv("SPARSE_MODEL_NAME", "Qdrant/bm25"),
         rag_top_k=rag_top_k,

@@ -13,7 +13,7 @@ const conversationSchema = new mongoose.Schema({
   },
   peripheral: {
     type: String,
-    default: 'General', // e.g., 'STM32', 'ESP32', 'Arduino' - helps organize chats
+    default: 'STM32F1', // e.g., 'STM32F1', 'STM32F4', 'STM32G0'
   },
   isActive: {
     type: Boolean,

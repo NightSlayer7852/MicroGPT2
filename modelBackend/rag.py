@@ -128,9 +128,10 @@ def rag(
     rerank_top_k=None,
     graph_retriever=None,
     tracing_context: Optional[Dict[str, Any]] = None,
+    collection_name: Optional[str] = None,
 ):
     print(f"\n=======================================================")
-    print(f"[RAG Pipeline] New Query Received: \"{query}\"")
+    print(f"[RAG Pipeline] New Query Received: \"{query}\" (Collection: '{collection_name or 'default'}')")
     if history:
         print(f"[RAG Memory] Chat History provided ({len(history)} turns)")
     print(f"=======================================================")
@@ -155,15 +156,15 @@ def rag(
         metadata=trace_metadata,
     ), start_span(
         trace_name,
-        input_payload={"query": query, "search_query": search_query, "top_k": top_k},
+        input_payload={"query": query, "search_query": search_query, "top_k": top_k, "collection_name": collection_name},
         metadata={"component": "rag-pipeline"},
     ) as root_span:
         with start_span(
             "retrieve-base",
-            input_payload={"query": search_query, "top_k": top_k},
+            input_payload={"query": search_query, "top_k": top_k, "collection_name": collection_name},
             metadata={"component": "retrieval"},
         ) as retrieval_span:
-            base_results = retriever.retrieve(search_query, top_k=top_k)
+            base_results = retriever.retrieve(search_query, top_k=top_k, collection_name=collection_name)
             if retrieval_span is not None:
                 retrieval_span.update(output={"result_count": len(base_results)})
 
@@ -193,7 +194,7 @@ def rag(
                         if related_entities:
                             expanded_query = query + " " + " ".join(related_entities)
                             print(f"[RAG Pipeline] Expanded Query with graph entities: \"{expanded_query}\"")
-                            graph_results = retriever.retrieve(expanded_query, top_k=max(3, top_k // 2))
+                            graph_results = retriever.retrieve(expanded_query, top_k=max(3, top_k // 2), collection_name=collection_name)
 
                             for doc in graph_results:
                                 doc["score"] *= 0.8
@@ -282,9 +283,6 @@ Answer:
 
 Citations:
 - Page <number>: "<exact sentence>"
-
-Confidence:
-<High / Medium / Low>
 
 Follow-up Questions:
 <generate 2 or 3 highly relevant follow-up questions based on the topic and context provided>
