@@ -2,8 +2,11 @@
 import axios from 'axios';
 
 // 👇 CORRECTED BASE_URL LOGIC 👇
-// This tells Vite: "Use the Vercel variable if it exists, otherwise use localhost"
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';  
+let rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+if (rawUrl && !rawUrl.endsWith('/api')) {
+  rawUrl = rawUrl.replace(/\/+$/, '') + '/api';
+}
+const BASE_URL = rawUrl;  
 
 const axiosClient = axios.create({
   baseURL: BASE_URL,
