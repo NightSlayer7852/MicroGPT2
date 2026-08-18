@@ -8,6 +8,13 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+try:
+    from .logger import get_logger
+except ImportError:
+    from logger import get_logger
+
+logger = get_logger("microgpt.tracing")
+
 _client: Optional[Any] = None
 _client_checked = False
 
@@ -18,7 +25,7 @@ class _NoopSpan:
 
     def __exit__(self, exc_type, exc, tb) -> bool:
         return False
-    
+
     def update(self, **_kwargs: Any) -> None:
         return None
 
@@ -37,8 +44,11 @@ def get_langfuse_client() -> Optional[Any]:
         client = get_client()
         if client.auth_check():
             _client = client
+            logger.info("Langfuse tracing enabled and authenticated.")
+        else:
+            logger.info("Langfuse auth_check failed. Tracing disabled.")
     except Exception as exc:
-        print(f"Langfuse tracing disabled: {exc}")
+        logger.info(f"Langfuse tracing disabled: {exc}")
 
     return _client
 
@@ -53,7 +63,7 @@ def get_langfuse_langchain_handler() -> Optional[Any]:
 
         return CallbackHandler()
     except Exception as exc:
-        print(f"Langfuse LangChain handler unavailable: {exc}")
+        logger.warning(f"Langfuse LangChain handler unavailable: {exc}")
         return None
 
 
@@ -69,3 +79,4 @@ def start_span(name: str, input_payload: Any = None, metadata: Any = None, as_ty
         input=input_payload,
         metadata=metadata,
     )
+

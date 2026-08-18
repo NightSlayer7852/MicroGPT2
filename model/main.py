@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import List, Optional
@@ -12,10 +13,14 @@ from pydantic import BaseModel
 
 try:
     from .config import settings
+    from .logger import get_logger
     from .rag import RAGComponents, build_components, llm, rag
 except ImportError:
     from config import settings
+    from logger import get_logger
     from rag import RAGComponents, build_components, llm, rag
+
+logger = get_logger("microgpt.api")
 
 
 class MessageTurn(BaseModel):
@@ -30,6 +35,7 @@ class QueryRequest(BaseModel):
     session_id: Optional[str] = None
     tags: Optional[List[str]] = None
     collection_name: Optional[str] = None
+    learning_style: Optional[str] = "detailed"
 
 
 class Source(BaseModel):
@@ -46,13 +52,20 @@ class QueryResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.components = build_components(include_graph=True)
+    logger.info("Starting MicroGPT API application lifespan initialization...")
     try:
+        app.state.components = build_components(include_graph=True)
+        logger.info("MicroGPT API startup sequence completed successfully.")
         yield
+    except Exception as exc:
+        logger.critical(f"Critical error during API startup component initialization: {exc}", exc_info=True)
+        raise exc
     finally:
-        graph_retriever = app.state.components.graph_retriever
+        logger.info("Shutting down MicroGPT API application...")
+        graph_retriever = getattr(app.state.components, "graph_retriever", None)
         if graph_retriever is not None:
             graph_retriever.close()
+        logger.info("MicroGPT API shutdown complete.")
 
 
 app = FastAPI(title="MicroGPT RAG API", lifespan=lifespan)
@@ -91,10 +104,8 @@ def get_components(request: Request) -> RAGComponents:
     return request.app.state.components
 
 
-
-
 @spaces.GPU(duration=60)
-def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, rerank_top_k, graph_retriever, tracing_context, collection_name):
+def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, rerank_top_k, graph_retriever, tracing_context, collection_name, learning_style):
     return rag(
         query,
         retriever,
@@ -107,13 +118,18 @@ def execute_rag_pipeline(query, retriever, llm, history_turns, top_k, reranker, 
         graph_retriever=graph_retriever,
         tracing_context=tracing_context,
         collection_name=collection_name,
+        learning_style=learning_style,
     )
 
 
 @app.post("/query", response_model=QueryResponse)
 def query_model(request: QueryRequest, components: RAGComponents = Depends(get_components)):
+    start_time = time.time()
+    request_session_id = request.session_id or str(uuid.uuid4())
+    logger.info(f"Received POST /query [session_id='{request_session_id}', user_id='{request.user_id}', collection='{request.collection_name}', style='{request.learning_style}']")
+    logger.info(f"Query text: \"{request.query}\"")
+
     try:
-        request_session_id = request.session_id or str(uuid.uuid4())
         history_turns = (
             [{"role": turn.role, "content": turn.content} for turn in request.history]
             if request.history
@@ -133,14 +149,19 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
                 "user_id": request.user_id,
                 "session_id": request_session_id,
                 "tags": request.tags or ["api", "microgpt", "rag"],
-                "metadata": {"endpoint": "/query"},
+                "metadata": {"endpoint": "/query", "learning_style": request.learning_style},
             },
             request.collection_name,
+            request.learning_style,
         )
+
+        elapsed = time.time() - start_time
+        logger.info(f"Successfully processed POST /query [session_id='{request_session_id}'] in {elapsed:.2f}s")
         return QueryResponse(answer=response["answer"], sources=response["sources"], confidence=response["confidence"])
     except Exception as exc:
+        elapsed = time.time() - start_time
         err_msg = str(exc)
-        print(f"[API Error] ❌ Exception processing query: {err_msg}")
+        logger.error(f"Exception processing POST /query [session_id='{request_session_id}'] after {elapsed:.2f}s: {err_msg}", exc_info=True)
         if "RateLimitError" in err_msg or "rate_limit_exceeded" in err_msg or "429" in err_msg:
             raise HTTPException(
                 status_code=429,
@@ -151,11 +172,11 @@ def query_model(request: QueryRequest, components: RAGComponents = Depends(get_c
                 status_code=403,
                 detail="Groq organization restricted. Please check your API key on console.groq.com."
             )
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=err_msg)
 
 
 @app.get("/")
 def read_root():
+    logger.info("Received GET / health check.")
     return {"message": "MicroGPT API is running. Use /query to interact with the model."}
+

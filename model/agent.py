@@ -11,6 +11,13 @@ from __future__ import annotations
 
 from langchain_core.tools import tool
 
+try:
+    from .logger import get_logger
+except ImportError:
+    from logger import get_logger
+
+logger = get_logger("microgpt.agent")
+
 
 @tool
 def search_knowledge_graph(query: str) -> str:
@@ -26,13 +33,20 @@ def search_knowledge_graph(query: str) -> str:
 
 def should_expand_with_graph(query: str) -> bool:
     try:
-        from .rag import llm  # local import: rag.py builds this agent, so import lazily to avoid a cycle
-    except ImportError:
-        from rag import llm
+        try:
+            from .rag import llm  # local import: rag.py builds this agent, so import lazily to avoid a cycle
+        except ImportError:
+            from rag import llm
 
-    router = llm.bind_tools([search_knowledge_graph])
-    response = router.invoke(
-        "Decide whether answering this question requires looking up entity "
-        f"relationships in the knowledge graph.\n\nQuestion: {query}"
-    )
-    return bool(response.tool_calls)
+        router = llm.bind_tools([search_knowledge_graph])
+        response = router.invoke(
+            "Decide whether answering this question requires looking up entity "
+            f"relationships in the knowledge graph.\n\nQuestion: {query}"
+        )
+        use_graph = bool(response.tool_calls)
+        logger.info(f"Router Agent decision for query '{query}': use_graph={use_graph}")
+        return use_graph
+    except Exception as exc:
+        logger.error(f"Router Agent evaluation failed for query '{query}': {exc}. Defaulting to use_graph=False.", exc_info=True)
+        return False
+

@@ -8,6 +8,13 @@ import numpy as np
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, SparseVector, SparseVectorParams, VectorParams
 
+try:
+    from .logger import get_logger
+except ImportError:
+    from logger import get_logger
+
+logger = get_logger("microgpt.vector_store")
+
 
 class VectorStore:
     def __init__(
@@ -32,41 +39,52 @@ class VectorStore:
         return url
 
     def _initialize_collection(self):
-        collections = [c.name for c in self.client.get_collections().collections]
+        try:
+            collections = [c.name for c in self.client.get_collections().collections]
 
-        if self.collection_name not in collections:
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config={
-                    "dense": VectorParams(size=self.vector_size, distance=Distance.COSINE)
-                },
-                sparse_vectors_config={"sparse": SparseVectorParams()},
-            )
-            print("Hybrid vector store initialized successfully")
-        else:
-            print("Collection already exists")
+            if self.collection_name not in collections:
+                logger.info(f"Creating missing Qdrant collection '{self.collection_name}' (vector size: {self.vector_size})...")
+                self.client.create_collection(
+                    collection_name=self.collection_name,
+                    vectors_config={
+                        "dense": VectorParams(size=self.vector_size, distance=Distance.COSINE)
+                    },
+                    sparse_vectors_config={"sparse": SparseVectorParams()},
+                )
+                logger.info(f"Hybrid Qdrant vector store collection '{self.collection_name}' initialized successfully.")
+            else:
+                logger.info(f"Qdrant collection '{self.collection_name}' verified.")
+        except Exception as exc:
+            logger.error(f"Error checking/creating Qdrant collection '{self.collection_name}': {exc}", exc_info=True)
+            raise
 
     def _initialize_store(self):
         try:
             if self.url:
+                logger.info(f"Connecting to Qdrant Cloud at URL: {self.url}")
                 self.client = QdrantClient(url=self.url, api_key=self.api_key)
             else:
+                logger.info(f"QDRANT_URL not set; using local storage path: {self.local_fallback_path}")
                 self.client = QdrantClient(path=self.local_fallback_path)
             self._initialize_collection()
         except Exception as exc:
             if not self.local_fallback_path:
+                logger.error(f"Failed to connect to Qdrant Cloud at '{self.url}': {exc}", exc_info=True)
                 raise RuntimeError(
                     "Failed to connect to Qdrant cloud. "
                     f"Check QDRANT_URL ('{self.url}') and network/DNS access."
                 ) from exc
 
-            print(
-                "Failed to connect to Qdrant cloud; falling back to local storage at "
-                f"{self.local_fallback_path}. Error: {exc}"
+            logger.warning(
+                f"Failed to connect to Qdrant cloud ({self.url}); falling back to local storage at '{self.local_fallback_path}'. Error: {exc}"
             )
-            Path(self.local_fallback_path).mkdir(parents=True, exist_ok=True)
-            self.client = QdrantClient(path=self.local_fallback_path)
-            self._initialize_collection()
+            try:
+                Path(self.local_fallback_path).mkdir(parents=True, exist_ok=True)
+                self.client = QdrantClient(path=self.local_fallback_path)
+                self._initialize_collection()
+            except Exception as local_exc:
+                logger.error(f"Failed to initialize local Qdrant fallback store at '{self.local_fallback_path}': {local_exc}", exc_info=True)
+                raise
 
     def add_documents(
         self,
@@ -79,7 +97,7 @@ class VectorStore:
             raise ValueError("Documents, dense embeddings, and sparse vectors must match in length")
 
         total = len(documents)
-        print(f"Adding {total} documents in batches of {batch_size}")
+        logger.info(f"Adding {total} documents to Qdrant collection '{self.collection_name}' in batches of {batch_size}")
 
         batch_points = []
 
@@ -102,9 +120,10 @@ class VectorStore:
 
             if len(batch_points) >= batch_size:
                 self.client.upsert(collection_name=self.collection_name, points=batch_points)
-                print(f"Uploaded {i}/{total}")
+                logger.info(f"Uploaded batch: {i}/{total} points")
                 batch_points = []
 
         if batch_points:
             self.client.upsert(collection_name=self.collection_name, points=batch_points)
-            print(f"Uploaded {total}/{total}")
+            logger.info(f"Uploaded final batch: {total}/{total} points")
+
