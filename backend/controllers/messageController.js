@@ -39,7 +39,7 @@ exports.getMessages = async (req, res) => {
  */
 exports.sendMessage = async (req, res) => {
   try {
-    const { conversationId, content, stmManual } = req.body;
+    const { conversationId, content, stmManual, learningStyle } = req.body;
 
     if (!content) {
       return res.status(400).json({ message: 'Message content is required' });
@@ -58,7 +58,12 @@ exports.sendMessage = async (req, res) => {
     const userMessage = await chatService.saveUserMessage(conversationId, content);
 
     // 3. Call AI Service (FastAPI RAG response)
-    const assistantMessage = await chatService.generateAiResponse(conversationId, content, stmManual || conversation.peripheral);
+    const assistantMessage = await chatService.generateAiResponse(
+      conversationId,
+      content,
+      stmManual || conversation.peripheral,
+      learningStyle
+    );
 
     // 4. Update the Conversation's updatedAt timestamp so it jumps to the top of the history
     conversation.updatedAt = new Date();

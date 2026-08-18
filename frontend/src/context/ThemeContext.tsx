@@ -1,58 +1,62 @@
 // src/context/ThemeContext.tsx
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-// Define the theme types
-export type Theme = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark';
+export type ThemePreset = 'cosmic' | 'amber' | 'nature' | 'vercel';
 
-// Define the context shape
 interface ThemeContextType {
-  theme: Theme;
+  theme: ThemeMode;
+  preset: ThemePreset;
   toggleTheme: () => void;
-  setTheme: (theme: Theme) => void; // <-- 1. ADD THIS so SettingsPage can use it
+  setTheme: (theme: ThemeMode) => void;
+  setPreset: (preset: ThemePreset) => void;
 }
 
-// Create the context with default values
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'light',
+  theme: 'dark',
+  preset: 'cosmic',
   toggleTheme: () => {},
-  setTheme: () => {}, // <-- 2. ADD THIS fallback
+  setTheme: () => {},
+  setPreset: () => {},
 });
 
-// Create the provider component
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  // Use system preference as default, or fallback to light
-  const initialTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const initialMode: ThemeMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark';
   
-  // Notice we are just using the standard React `setTheme` here
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [theme, setTheme] = useState<ThemeMode>(initialMode);
+  const [preset, setPreset] = useState<ThemePreset>('cosmic');
 
-  // Apply theme to the <body> tag whenever it changes
   useEffect(() => {
-    document.body.className = theme === 'dark' ? 'dark-theme' : 'light-theme';
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
+    const modeClass = theme === 'dark' ? 'dark-theme' : 'light-theme';
+    const presetClass = `theme-${preset}`;
+    
+    document.body.className = `${presetClass} ${modeClass}`;
+    localStorage.setItem('app-theme-mode', theme);
+    localStorage.setItem('app-theme-preset', preset);
+  }, [theme, preset]);
 
-  // Read stored preference on mount
   useEffect(() => {
-    const storedTheme = localStorage.getItem('app-theme');
-    if (storedTheme === 'dark' || storedTheme === 'light') {
-      setTheme(storedTheme);
+    const storedMode = localStorage.getItem('app-theme-mode');
+    if (storedMode === 'dark' || storedMode === 'light') {
+      setTheme(storedMode);
+    }
+    const storedPreset = localStorage.getItem('app-theme-preset') as ThemePreset;
+    if (['cosmic', 'amber', 'nature', 'vercel'].includes(storedPreset)) {
+      setPreset(storedPreset);
     }
   }, []);
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   return (
-    // 3. EXPOSE `setTheme` HERE in the provider value
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, preset, toggleTheme, setTheme, setPreset }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-// Create a hook to use the theme context easily
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {

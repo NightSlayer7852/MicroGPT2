@@ -90,11 +90,12 @@ export const chatApi = {
   /**
    * Sends a user's prompt to the backend and waits for the AI's response.
    */
-  postMessage: async (conversationId: string, content: string, stmManual?: string): Promise<SendMessageResponse> => {
+  postMessage: async (conversationId: string, content: string, stmManual?: string, learningStyle?: string): Promise<SendMessageResponse> => {
     const response = await axiosClient.post('/chat/messages', {
       conversationId,
       content,
-      stmManual
+      stmManual,
+      learningStyle
     });
     return response.data;
   }

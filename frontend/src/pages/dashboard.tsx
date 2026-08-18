@@ -24,8 +24,38 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  BookOpen
+  BookOpen,
+  Palette,
+  Settings,
+  Sliders
 } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "../components/ui/dropdown-menu";
+import { Button } from "../components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { Badge } from "../components/ui/badge";
 
 // --- Custom CodeBlock with Copy Header Bar ---
 function CodeBlockComponent({ language, value }: { language: string; value: string }) {
@@ -60,12 +90,46 @@ function CodeBlockComponent({ language, value }: { language: string; value: stri
   );
 }
 
+export interface LearningStyleOption {
+  id: string;
+  label: string;
+  badge: string;
+  desc: string;
+}
+
+export const LEARNING_STYLES: LearningStyleOption[] = [
+  {
+    id: "simple",
+    label: "Simple",
+    badge: "Easy",
+    desc: "Explains concepts in very easy language, ideal for beginners"
+  },
+  {
+    id: "detailed",
+    label: "Detailed",
+    badge: "Deep",
+    desc: "In-depth explanation with concepts, reasoning, examples & technical details"
+  },
+  {
+    id: "concise",
+    label: "Concise",
+    badge: "Quick",
+    desc: "Direct answer with minimal explanation, best for quick revision"
+  },
+  {
+    id: "tutor",
+    label: "Tutor",
+    badge: "Guided",
+    desc: "Explains step-by-step like a teacher, building up concepts gradually"
+  }
+];
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { logout, userName: authUserName } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, preset, setPreset } = useTheme();
   
   const [greeting, setGreeting] = useState("Good evening");
   const [userName, setUserName] = useState<string>(authUserName || "User"); 
@@ -74,6 +138,11 @@ export default function Dashboard() {
   const [selectedManual, setSelectedManual] = useState<string>("STM32F1");
   const [isManualMenuOpen, setIsManualMenuOpen] = useState(false);
   const manualMenuRef = useRef<HTMLDivElement>(null);
+
+  const [selectedStyle, setSelectedStyle] = useState<string>("detailed");
+  const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
+  const styleMenuRef = useRef<HTMLDivElement>(null);
+
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -87,6 +156,9 @@ export default function Dashboard() {
       if (manualMenuRef.current && !manualMenuRef.current.contains(event.target as Node)) {
         setIsManualMenuOpen(false);
       }
+      if (styleMenuRef.current && !styleMenuRef.current.contains(event.target as Node)) {
+        setIsStyleMenuOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -98,6 +170,14 @@ export default function Dashboard() {
   };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 220)}px`;
+    }
+  }, [inputText]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -171,7 +251,7 @@ export default function Dashboard() {
         window.dispatchEvent(new Event("refreshSidebar"));
       }
 
-      const response = await chatApi.postMessage(currentConvId, textToSend, selectedManual);
+      const response = await chatApi.postMessage(currentConvId, textToSend, selectedManual, selectedStyle);
 
       setMessages((prev) => {
         const filtered = prev.filter((m) => m._id !== tempUserMsg._id); 
@@ -236,10 +316,202 @@ export default function Dashboard() {
           <Sparkles size={16} className="sparkle-icon" />
           <span>MicroGPT RAG Engine</span>
         </div>
-        <div className="nav-right" style={{ marginLeft: "auto" }}>
+        <div className="nav-right" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "10px" }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="theme-toggle" title="Select Theme">
+                <Palette size={18} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[165px] p-1.5 space-y-0.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-2xl">
+              <DropdownMenuItem
+                className="flex items-center justify-between px-3 py-2 cursor-pointer rounded-lg text-xs font-semibold hover:bg-[var(--bg-hover)]"
+                onClick={() => setPreset('cosmic')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />
+                  <span>Cosmic Night</span>
+                </div>
+                {preset === 'cosmic' && <Check size={14} className="text-purple-400 shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                className="flex items-center justify-between px-3 py-2 cursor-pointer rounded-lg text-xs font-semibold hover:bg-[var(--bg-hover)]"
+                onClick={() => setPreset('amber')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                  <span>Amber</span>
+                </div>
+                {preset === 'amber' && <Check size={14} className="text-amber-400 shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                className="flex items-center justify-between px-3 py-2 cursor-pointer rounded-lg text-xs font-semibold hover:bg-[var(--bg-hover)]"
+                onClick={() => setPreset('nature')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Nature</span>
+                </div>
+                {preset === 'nature' && <Check size={14} className="text-emerald-400 shrink-0" />}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                className="flex items-center justify-between px-3 py-2 cursor-pointer rounded-lg text-xs font-semibold hover:bg-[var(--bg-hover)]"
+                onClick={() => setPreset('vercel')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-white shrink-0" />
+                  <span>Vercel</span>
+                </div>
+                {preset === 'vercel' && <Check size={14} className="text-foreground shrink-0" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle Dark Mode">
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+
+          {/* Settings Side Drawer Panel */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="theme-toggle" title="Settings">
+                <Settings size={18} />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-md bg-background border-border p-6 flex flex-col justify-between overflow-y-auto">
+              <div className="space-y-6">
+                <SheetHeader className="space-y-1 text-left">
+                  <div className="flex items-center gap-2 text-purple-400">
+                    <Sliders size={18} />
+                    <SheetTitle className="text-xl font-bold">Settings</SheetTitle>
+                  </div>
+                  <SheetDescription className="text-xs text-muted-foreground">
+                    Customize your STM32 reference target, AI explanation style, and theme appearance.
+                  </SheetDescription>
+                </SheetHeader>
+
+                <div className="space-y-6 pt-2">
+                  {/* 1. STM32 Reference Manual Target */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      STM32 Reference Manual Target
+                    </label>
+                    <Select value={selectedManual} onValueChange={setSelectedManual}>
+                      <SelectTrigger className="w-full bg-secondary/60 border-border/80 rounded-xl">
+                        <SelectValue placeholder="Select Manual Target" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        {stmManuals.map((manual) => (
+                          <SelectItem key={manual} value={manual}>
+                            {manual}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 2. Learning & Explanation Style */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Learning & Explanation Style
+                    </label>
+                    <RadioGroup value={selectedStyle} onValueChange={setSelectedStyle} className="space-y-2.5">
+                      {LEARNING_STYLES.map((styleObj) => (
+                        <label
+                          key={styleObj.id}
+                          className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                            selectedStyle === styleObj.id
+                              ? "border-purple-500/50 bg-purple-500/10 shadow-sm"
+                              : "border-border/60 bg-secondary/40 hover:bg-secondary/70"
+                          }`}
+                        >
+                          <RadioGroupItem value={styleObj.id} id={styleObj.id} className="mt-1" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-foreground">{styleObj.label}</span>
+                              <Badge variant="purple" className="text-[10px] px-2 py-0">
+                                {styleObj.badge}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                              {styleObj.desc}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+
+                  {/* 3. Theme Preset Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Color Theme Preset
+                    </label>
+                    <Select value={preset} onValueChange={(val) => setPreset(val as any)}>
+                      <SelectTrigger className="w-full bg-secondary/60 border-border/80 rounded-xl">
+                        <SelectValue placeholder="Select Theme" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100]">
+                        <SelectItem value="cosmic">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                            <span>Cosmic Night</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="amber">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                            <span>Amber</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="nature">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                            <span>Nature</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="vercel">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-white" />
+                            <span>Vercel</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* 4. Appearance Mode */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-border/60 bg-secondary/40">
+                    <div>
+                      <div className="text-xs font-bold text-foreground">Appearance Mode</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Switch between Light and Dark color modes
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleTheme}
+                      className="rounded-xl border-border hover:border-purple-500/50"
+                    >
+                      {theme === 'dark' ? <Sun size={14} className="mr-1.5 text-amber-400" /> : <Moon size={14} className="mr-1.5 text-purple-400" />}
+                      <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-border/60 text-center mt-6">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  MicroGPT Technical Intelligence v2.0
+                </span>
+              </div>
+            </SheetContent>
+          </Sheet>
+
           <button className="user-avatar" onClick={handleLogout} title="Click to Logout">
             {userInitial}
           </button>
@@ -318,10 +590,25 @@ export default function Dashboard() {
                         code({ node, inline, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || "");
                           const codeString = String(children).replace(/\n$/, "");
-                          return !inline && match ? (
-                            <CodeBlockComponent language={match[1]} value={codeString} />
-                          ) : (
-                            <code className={className} {...props}>{children}</code>
+                          if (!inline) {
+                            return (
+                              <CodeBlockComponent
+                                language={match ? match[1] : "c"}
+                                value={codeString}
+                              />
+                            );
+                          }
+                          return (
+                            <code className="inline-code" {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                        table({ children }: any) {
+                          return (
+                            <div className="table-responsive-wrapper">
+                              <table className="markdown-table">{children}</table>
+                            </div>
                           );
                         },
                       }}
@@ -418,6 +705,7 @@ export default function Dashboard() {
         <div className="input-container-wrapper">
           <div className="input-box">
             <textarea
+              ref={textareaRef}
               className="chat-input"
               placeholder="Ask MicroGPT anything about STM32 hardware, registers, or code..."
               value={inputText}
@@ -427,36 +715,79 @@ export default function Dashboard() {
             />
             
             <div className="input-footer">
-              <div className="model-selector-container" ref={manualMenuRef}>
-                <button
-                  type="button"
-                  className="manual-pill-btn"
-                  onClick={() => setIsManualMenuOpen(!isManualMenuOpen)}
-                  title="Select STM32 Reference Manual"
-                >
-                  <span className="manual-selected-value">{selectedManual}</span>
-                  <ChevronDown size={14} className={`select-chevron ${isManualMenuOpen ? 'open' : ''}`} />
-                </button>
+              <div className="selectors-group">
+                {/* STM32 Manual Selector */}
+                <DropdownMenu open={isManualMenuOpen} onOpenChange={setIsManualMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="manual-pill-btn"
+                      title="Select STM32 Reference Manual"
+                    >
+                      <span className="manual-selected-value">{selectedManual}</span>
+                      <ChevronDown size={14} className={`select-chevron ${isManualMenuOpen ? 'open' : ''}`} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" sideOffset={10} style={{ padding: "14px 16px" }} className="z-[9999] w-[170px] bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-2xl rounded-2xl">
+                    <div className="flex flex-col gap-1 max-h-[260px] overflow-y-auto">
+                      {stmManuals.map((manual) => (
+                        <DropdownMenuItem
+                          key={manual}
+                          style={{ padding: "8px 12px", marginBottom: "3px" }}
+                          className="flex items-center justify-between cursor-pointer rounded-xl text-xs font-bold hover:bg-[var(--bg-hover)]"
+                          onClick={() => {
+                            setSelectedManual(manual);
+                            setIsManualMenuOpen(false);
+                          }}
+                        >
+                          <span>{manual}</span>
+                          {selectedManual === manual && <Check size={14} style={{ color: "var(--accent-purple)" }} className="manual-check-icon shrink-0" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                {isManualMenuOpen && (
-                  <div className="manual-dropdown-menu">
-                    {stmManuals.map((manual) => (
-                      <button
-                        key={manual}
-                        type="button"
-                        className={`manual-dropdown-item ${selectedManual === manual ? 'active' : ''}`}
-                        onClick={() => {
-                          setSelectedManual(manual);
-                          setIsManualMenuOpen(false);
-                        }}
-                      >
-                        <span>{manual}</span>
-                        {selectedManual === manual && <Check size={14} className="manual-check-icon" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Learning Style Selector */}
+                <DropdownMenu open={isStyleMenuOpen} onOpenChange={setIsStyleMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="manual-pill-btn style-pill-btn"
+                      title="Select Learning & Explanation Style"
+                    >
+                      <span className="manual-selected-value">
+                        {LEARNING_STYLES.find((s) => s.id === selectedStyle)?.label || "Detailed"}
+                      </span>
+                      <ChevronDown size={14} className={`select-chevron ${isStyleMenuOpen ? 'open' : ''}`} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" sideOffset={10} style={{ padding: "16px" }} className="z-[9999] w-[330px] bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] shadow-2xl rounded-2xl">
+                    <div className="flex flex-col gap-2">
+                      {LEARNING_STYLES.map((styleObj) => (
+                        <DropdownMenuItem
+                          key={styleObj.id}
+                          style={{ padding: "10px 12px", marginBottom: "4px" }}
+                          className="flex flex-col items-start gap-1 cursor-pointer rounded-xl hover:bg-[var(--bg-hover)]"
+                          onClick={() => {
+                            setSelectedStyle(styleObj.id);
+                            setIsStyleMenuOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center justify-between w-full font-bold text-xs">
+                            <span>{styleObj.label}</span>
+                            {selectedStyle === styleObj.id && <Check size={14} style={{ color: "var(--accent-purple)" }} className="shrink-0" />}
+                          </div>
+                          <span className="text-[11px] font-normal text-[var(--text-secondary)] leading-relaxed">
+                            {styleObj.desc}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
               
               <div className="action-icons">
                 <button className="icon-btn" aria-label="Attach File">

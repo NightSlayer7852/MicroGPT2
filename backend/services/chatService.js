@@ -16,7 +16,7 @@ exports.saveUserMessage = async (conversationId, content) => {
 };
 
 
-exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
+exports.generateAiResponse = async (conversationId, userPrompt, stmManual, learningStyle) => {
   try {
     // 0. Fetch recent conversation history from MongoDB (last 6 messages)
     let history = [];
@@ -83,7 +83,8 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
         query: userPrompt,
         history: history,
         session_id: conversationId ? conversationId.toString() : undefined,
-        collection_name: stmManual || 'STM32F1'
+        collection_name: stmManual || 'STM32F1',
+        learning_style: learningStyle || 'detailed'
       }, {
         headers: {
           'Content-Type': 'application/json',
@@ -98,14 +99,17 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
     // ==========================================
     const rawAnswerText = aiData.answer || "";
     
-    // 1. Extract Follow-up Questions
-    const followUpParts = rawAnswerText.split(/Follow-up Questions:/i);
+    // 1. Extract Follow-up Questions (matches "Follow-up Questions:", "**Follow-up Questions:**", etc.)
+    const followUpParts = rawAnswerText.split(/(?:\*\*|###\s*)?Follow-up Questions(?:\*\*|:)?/i);
     let followUps = [];
     if (followUpParts.length > 1) {
       followUps = followUpParts[1]
         .split('\n')
-        .filter(line => line.trim().match(/^\d+\./)) 
-        .map(line => line.replace(/^\d+\.\s*/, '').trim()); 
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => line.replace(/^(?:[-*•\d.]+|\d+\))\s*/, '').trim())
+        .filter(text => text.length > 0)
+        .slice(0, 3);
     }
 
     const textBeforeFollowUps = followUpParts[0];
@@ -122,11 +126,12 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
         .filter(line => line.length > 0)
         .map(line => line.replace(/^[-*•\d.]+\s*/, '').trim())
         .filter(text => text.length > 0)
+        .slice(0, 5)
         .map(text => ({ text, referenceId: '#' }));
     }
 
-    // 3. Map FastAPI "sources" to Frontend format
-    const mappedSources = (aiData.sources || []).map((src) => ({
+    // 3. Map FastAPI "sources" to Frontend format (Top 5 max)
+    const mappedSources = (aiData.sources || []).slice(0, 5).map((src) => ({
       title: src.chapter || "Extracted Document",
       url: src.page ? `Page ${src.page}` : "#",
       peripheral: "RAG Source"
@@ -134,7 +139,7 @@ exports.generateAiResponse = async (conversationId, userPrompt, stmManual) => {
 
     // Fallback: If no citations extracted from text, build them from Qdrant sources
     if (extractedCitations.length === 0 && mappedSources.length > 0) {
-      extractedCitations = mappedSources.map(s => ({
+      extractedCitations = mappedSources.slice(0, 5).map(s => ({
         text: s.url && s.url !== '#' ? `${s.title} (${s.url})` : s.title,
         referenceId: '#'
       }));
